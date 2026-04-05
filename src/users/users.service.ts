@@ -83,6 +83,7 @@ export class UsersService {
     }
 
     user.password = updatePasswordDto.newPassword;
+    user.updatedAt = Date.now();
 
     return {
       id: user.id,
