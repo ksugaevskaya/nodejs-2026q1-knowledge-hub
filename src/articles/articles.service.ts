@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
-import { Article, ArticleStatus } from './entities/article.entity';
+import { Article } from './entities/article.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 
@@ -69,6 +69,10 @@ export class ArticlesService {
     }
 
     const article = this.articles.find((item) => item.id === id);
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
 
     if (updateArticleDto.title) {
       article.title = updateArticleDto.title;
