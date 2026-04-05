@@ -8,10 +8,12 @@ import {
   Put,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-user-password.dto';
+import { SortOrder } from '../common/types';
 
 @Controller('user')
 export class UsersController {
@@ -23,8 +25,8 @@ export class UsersController {
   }
 
   @Get()
-  getAll() {
-    return this.usersService.getAll();
+  getAll(@Query('sortBy') sortBy?: string, @Query('order') order?: SortOrder) {
+    return this.usersService.getAll(sortBy, order);
   }
 
   @Get(':id')

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { SortOrder } from '../common/types';
 
 @Controller('comment')
 export class CommentsController {
@@ -22,8 +23,12 @@ export class CommentsController {
   }
 
   @Get()
-  getAll(@Query('articleId') articleId: string) {
-    return this.commentsService.getAll(articleId);
+  getAll(
+    @Query('articleId') articleId: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order?: SortOrder,
+  ) {
+    return this.commentsService.getAll(articleId, sortBy, order);
   }
 
   @Get(':id')

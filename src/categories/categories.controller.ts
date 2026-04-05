@@ -8,10 +8,12 @@ import {
   Put,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { SortOrder } from '../common/types';
 
 @Controller('category')
 export class CategoriesController {
@@ -23,8 +25,8 @@ export class CategoriesController {
   }
 
   @Get()
-  getAll() {
-    return this.categoriesService.getAll();
+  getAll(@Query('sortBy') sortBy?: string, @Query('order') order?: SortOrder) {
+    return this.categoriesService.getAll(sortBy, order);
   }
 
   @Get(':id')

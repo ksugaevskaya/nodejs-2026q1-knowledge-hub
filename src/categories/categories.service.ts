@@ -9,6 +9,8 @@ import { Category } from './entities/category.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 import { ArticlesService } from '../articles/articles.service';
+import { sortItems } from '../common/sorting.util';
+import { SortOrder } from '../common/types';
 
 @Injectable()
 export class CategoriesService {
@@ -28,8 +30,8 @@ export class CategoriesService {
     return newCategory;
   }
 
-  getAll() {
-    return this.categories;
+  getAll(sortBy?: string, order?: SortOrder) {
+    return sortItems(this.categories, sortBy, order);
   }
 
   getOne(id: string) {

@@ -11,6 +11,8 @@ import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 import { ArticlesService } from '../articles/articles.service';
 import { CommentsService } from '../comments/comments.service';
+import { sortItems } from '../common/sorting.util';
+import { SortOrder } from '../common/types';
 
 @Injectable()
 export class UsersService {
@@ -42,7 +44,7 @@ export class UsersService {
     };
   }
 
-  getAll() {
+  getAll(sortBy?: string, order?: SortOrder) {
     const allUsers = this.users.map((user) => ({
       id: user.id,
       login: user.login,
@@ -51,7 +53,7 @@ export class UsersService {
       updatedAt: user.updatedAt,
     }));
 
-    return allUsers;
+    return sortItems(allUsers, sortBy, order);
   }
 
   getOne(id: string) {

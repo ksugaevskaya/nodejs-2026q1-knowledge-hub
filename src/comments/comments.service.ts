@@ -11,6 +11,8 @@ import { randomUUID } from 'crypto';
 import { CommentType } from './entities/comment.entity';
 import { validate as isUuid } from 'uuid';
 import { ArticlesService } from '../articles/articles.service';
+import { sortItems } from '../common/sorting.util';
+import { SortOrder } from '../common/types';
 
 @Injectable()
 export class CommentsService {
@@ -40,7 +42,7 @@ export class CommentsService {
     return newComment;
   }
 
-  getAll(articleId: string) {
+  getAll(articleId: string, sortBy?: string, order?: SortOrder) {
     let result = this.comments;
 
     if (!articleId) {
@@ -51,7 +53,7 @@ export class CommentsService {
       result = result.filter((item) => item.articleId === articleId);
     }
 
-    return result;
+    return sortItems(result, sortBy, order);
   }
 
   getOne(id: string) {

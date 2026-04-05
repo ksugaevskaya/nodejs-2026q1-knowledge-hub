@@ -11,6 +11,8 @@ import { Article } from './entities/article.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 import { CommentsService } from '../comments/comments.service';
+import { sortItems } from '../common/sorting.util';
+import { SortOrder } from '../common/types';
 
 @Injectable()
 export class ArticlesService {
@@ -39,7 +41,13 @@ export class ArticlesService {
     return newArticle;
   }
 
-  getAll(status: string, categoryId: string, tag: string) {
+  getAll(
+    status: string,
+    categoryId: string,
+    tag: string,
+    sortBy?: string,
+    order?: SortOrder,
+  ) {
     let results = this.articles;
 
     if (status) {
@@ -54,7 +62,7 @@ export class ArticlesService {
       results = results.filter((item) => item.tags.includes(tag));
     }
 
-    return results;
+    return sortItems(results, sortBy, order);
   }
 
   getOne(id: string) {

@@ -13,6 +13,7 @@ import {
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { SortOrder } from '../common/types';
 
 @Controller('article')
 export class ArticlesController {
@@ -28,8 +29,10 @@ export class ArticlesController {
     @Query('status') status: string,
     @Query('categoryId') categoryId: string,
     @Query('tag') tag: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order?: SortOrder,
   ) {
-    return this.articlesService.getAll(status, categoryId, tag);
+    return this.articlesService.getAll(status, categoryId, tag, sortBy, order);
   }
 
   @Get(':id')
