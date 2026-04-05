@@ -1,0 +1,85 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import { Category } from './entities/category.entity';
+import { randomUUID } from 'crypto';
+import { validate as isUuid } from 'uuid';
+import { ArticlesService } from '../articles/articles.service';
+import { sortItems } from '../common/sorting.util';
+import { SortOrder } from '../common/types';
+
+@Injectable()
+export class CategoriesService {
+  private categories: Category[] = [];
+
+  constructor(private readonly articlesService: ArticlesService) {}
+
+  create(createCategoryDto: CreateCategoryDto) {
+    const newCategory = {
+      id: randomUUID(),
+      name: createCategoryDto.name,
+      description: createCategoryDto.description,
+    };
+
+    this.categories.push(newCategory);
+
+    return newCategory;
+  }
+
+  getAll(sortBy?: string, order?: SortOrder) {
+    return sortItems(this.categories, sortBy, order);
+  }
+
+  getOne(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const category = this.categories.find((item) => item.id === id);
+
+    if (!category) {
+      throw new NotFoundException("Category not found'");
+    }
+    return category;
+  }
+
+  update(id: string, updateCategoryDto: UpdateCategoryDto) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const category = this.categories.find((item) => item.id === id);
+
+    if (!category) {
+      throw new NotFoundException("Category not found'");
+    }
+
+    if (updateCategoryDto.name) {
+      category.name = updateCategoryDto.name;
+    }
+
+    if (updateCategoryDto.description) {
+      category.description = updateCategoryDto.description;
+    }
+    return category;
+  }
+
+  remove(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const categoryIndex = this.categories.findIndex((item) => item.id === id);
+
+    if (categoryIndex === -1) {
+      throw new NotFoundException('Category not found');
+    }
+
+    this.articlesService.nullifyCategoryId(id);
+    this.categories.splice(categoryIndex, 1);
+  }
+}
