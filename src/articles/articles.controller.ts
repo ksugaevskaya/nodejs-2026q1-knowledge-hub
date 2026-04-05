@@ -31,8 +31,8 @@ export class ArticlesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.articlesService.findOne(+id);
+  getOne(@Param('id') id: string) {
+    return this.articlesService.getOne(id);
   }
 
   @Patch(':id')
