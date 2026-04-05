@@ -42,8 +42,25 @@ export class CategoriesService {
     return category;
   }
 
-  update(id: number, updateCategoryDto: UpdateCategoryDto) {
-    return `This action updates a #${id} category`;
+  update(id: string, updateCategoryDto: UpdateCategoryDto) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const category = this.categories.find((item) => item.id === id);
+
+    if (!category) {
+      throw new NotFoundException("Category not found'");
+    }
+
+    if (updateCategoryDto.name) {
+      category.name = updateCategoryDto.name;
+    }
+
+    if (updateCategoryDto.description) {
+      category.description = updateCategoryDto.description;
+    }
+    return category;
   }
 
   remove(id: number) {
