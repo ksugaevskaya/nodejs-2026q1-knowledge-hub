@@ -2,17 +2,27 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { randomUUID } from 'crypto';
 import { CommentType } from './entities/comment.entity';
 import { validate as isUuid } from 'uuid';
+import { ArticlesService } from '../articles/articles.service';
 
 @Injectable()
 export class CommentsService {
   private comments: CommentType[] = [];
 
+  constructor(private readonly articlesService: ArticlesService) {}
+
   create(createCommentDto: CreateCommentDto) {
+    try {
+      this.articlesService.getOne(createCommentDto.articleId);
+    } catch {
+      throw new UnprocessableEntityException('Article not found');
+    }
+
     const newComment = {
       id: randomUUID(),
       content: createCommentDto.content,
