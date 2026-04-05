@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -21,8 +22,12 @@ export class ArticlesController {
   }
 
   @Get()
-  findAll() {
-    return this.articlesService.findAll();
+  getAll(
+    @Query('status') status: string,
+    @Query('categoryId') categoryId: string,
+    @Query('tag') tag: string,
+  ) {
+    return this.articlesService.getAll(status, categoryId, tag);
   }
 
   @Get(':id')
