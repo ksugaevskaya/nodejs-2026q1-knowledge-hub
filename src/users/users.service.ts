@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { randomUUID } from 'crypto';
+import { validate as isUuid } from 'uuid';
 
 @Injectable()
 export class UsersService {
@@ -27,8 +32,18 @@ export class UsersService {
     return this.users;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  getOne(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const user = this.users.find((user) => user.id === id);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
