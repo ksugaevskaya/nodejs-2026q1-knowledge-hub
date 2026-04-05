@@ -26,6 +26,11 @@ export class CommentsController {
     return this.commentsService.getAll(articleId);
   }
 
+  @Get(':id')
+  getOne(@Param('id') id: string) {
+    return this.commentsService.getOne(id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {

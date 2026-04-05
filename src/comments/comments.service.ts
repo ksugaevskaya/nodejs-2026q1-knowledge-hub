@@ -39,6 +39,20 @@ export class CommentsService {
     return result;
   }
 
+  getOne(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid commentId format');
+    }
+
+    const comment = this.comments.find((item) => item.id === id);
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    return comment;
+  }
+
   remove(id: string) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid userId format');
