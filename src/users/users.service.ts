@@ -23,8 +23,8 @@ export class UsersService {
     return;
   }
 
-  findAll() {
-    return `This action returns all users`;
+  getAll() {
+    return this.users;
   }
 
   findOne(id: number) {
