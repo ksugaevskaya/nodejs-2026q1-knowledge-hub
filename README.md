@@ -115,6 +115,12 @@ The API provides endpoints for managing the following resources:
 npm run test
 ```
 
+### Run unit tests
+
+```bash
+npm run test:unit
+```
+
 ### Run tests in watch mode
 
 ```bash
