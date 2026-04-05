@@ -66,7 +66,19 @@ export class ArticlesService {
     return `This action updates a #${id} article`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} article`;
+  remove(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const articleIndex = this.articles.findIndex(
+      (article) => article.id === id,
+    );
+
+    if (articleIndex === -1) {
+      throw new NotFoundException('Article not found');
+    }
+
+    this.articles.splice(articleIndex, 1);
   }
 }
