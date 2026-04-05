@@ -26,11 +26,25 @@ export class UsersService {
 
     this.users.push(newUser);
 
-    return;
+    return {
+      id: newUser.id,
+      login: newUser.login,
+      role: newUser.role,
+      createdAt: newUser.createdAt,
+      updatedAt: newUser.updatedAt,
+    };
   }
 
   getAll() {
-    return this.users;
+    const allUsers = this.users.map((user) => ({
+      id: user.id,
+      login: user.login,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
+
+    return allUsers;
   }
 
   getOne(id: string) {
@@ -44,7 +58,13 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return {
+      id: user.id,
+      login: user.login,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   updatePassword(id: string, updatePasswordDto: UpdatePasswordDto) {
@@ -64,7 +84,13 @@ export class UsersService {
 
     user.password = updatePasswordDto.newPassword;
 
-    return user;
+    return {
+      id: user.id,
+      login: user.login,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   remove(id: string) {
