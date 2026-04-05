@@ -26,8 +26,22 @@ export class ArticlesService {
     return newArticle;
   }
 
-  findAll() {
-    return `This action returns all articles`;
+  getAll(status: string, categoryId: string, tag: string) {
+    let results = this.articles;
+
+    if (status) {
+      results = results.filter((item) => item.status === status);
+    }
+
+    if (categoryId) {
+      results = results.filter((item) => item.categoryId === categoryId);
+    }
+
+    if (tag) {
+      results = results.filter((item) => item.tags.includes(tag));
+    }
+
+    return results;
   }
 
   findOne(id: number) {
