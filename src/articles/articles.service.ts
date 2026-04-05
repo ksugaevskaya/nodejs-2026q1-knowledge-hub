@@ -126,4 +126,12 @@ export class ArticlesService {
     this.commentsService.removeByArticleId(id);
     this.articles.splice(articleIndex, 1);
   }
+
+  nullifyCategoryId(categoryId: string) {
+    this.articles.forEach((article) => {
+      if (article.categoryId === categoryId) {
+        article.categoryId = null;
+      }
+    });
+  }
 }

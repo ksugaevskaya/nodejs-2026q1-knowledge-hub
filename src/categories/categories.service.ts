@@ -8,10 +8,13 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
+import { ArticlesService } from '../articles/articles.service';
 
 @Injectable()
 export class CategoriesService {
   private categories: Category[] = [];
+
+  constructor(private readonly articlesService: ArticlesService) {}
 
   create(createCategoryDto: CreateCategoryDto) {
     const newCategory = {
@@ -74,6 +77,7 @@ export class CategoriesService {
       throw new NotFoundException('Category not found');
     }
 
+    this.articlesService.nullifyCategoryId(id);
     this.categories.splice(categoryIndex, 1);
   }
 }
