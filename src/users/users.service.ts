@@ -67,7 +67,17 @@ export class UsersService {
     return user;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  remove(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const userIndex = this.users.findIndex((user) => user.id === id);
+
+    if (userIndex === -1) {
+      throw new NotFoundException('User not found');
+    }
+
+    this.users.splice(userIndex, 1);
   }
 }
