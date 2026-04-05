@@ -63,7 +63,17 @@ export class CategoriesService {
     return category;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} category`;
+  remove(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const categoryIndex = this.categories.findIndex((item) => item.id === id);
+
+    if (categoryIndex === -1) {
+      throw new NotFoundException('Category not found');
+    }
+
+    this.categories.splice(categoryIndex, 1);
   }
 }
