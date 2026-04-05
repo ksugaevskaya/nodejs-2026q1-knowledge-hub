@@ -20,8 +20,8 @@ export class CategoriesService {
     return newCategory;
   }
 
-  findAll() {
-    return `This action returns all categories`;
+  getAll() {
+    return this.categories;
   }
 
   findOne(id: number) {
