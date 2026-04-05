@@ -87,4 +87,8 @@ export class CommentsService {
       (item) => item.articleId !== articleId,
     );
   }
+
+  removeByAuthorId(authorId: string) {
+    this.comments = this.comments.filter((item) => item.authorId !== authorId);
+  }
 }

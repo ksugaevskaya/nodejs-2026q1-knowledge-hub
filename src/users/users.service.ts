@@ -9,10 +9,17 @@ import { UpdatePasswordDto } from './dto/update-user-password.dto';
 import { User, UserRole } from './entities/user.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
+import { ArticlesService } from '../articles/articles.service';
+import { CommentsService } from '../comments/comments.service';
 
 @Injectable()
 export class UsersService {
   private users: User[] = [];
+
+  constructor(
+    private readonly articlesService: ArticlesService,
+    private readonly commentsService: CommentsService,
+  ) {}
 
   create(user: CreateUserDto) {
     const newUser: User = {
@@ -105,6 +112,8 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    this.articlesService.nullifyAuthorId(id);
+    this.commentsService.removeByAuthorId(id);
     this.users.splice(userIndex, 1);
   }
 }

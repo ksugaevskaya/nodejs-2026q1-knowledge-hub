@@ -134,4 +134,12 @@ export class ArticlesService {
       }
     });
   }
+
+  nullifyAuthorId(userId: string) {
+    this.articles.forEach((article) => {
+      if (article.authorId === userId) {
+        article.authorId = null;
+      }
+    });
+  }
 }
