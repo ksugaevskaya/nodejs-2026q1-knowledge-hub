@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-user-password.dto';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 
@@ -19,7 +19,7 @@ export class UsersService {
       id: randomUUID(),
       login: user.login,
       password: user.password,
-      role: user.role,
+      role: user.role || UserRole.VIEWER,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
