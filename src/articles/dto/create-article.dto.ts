@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsUUID, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsUUID, IsArray, IsEnum } from 'class-validator';
+import { ArticleStatus } from '../entities/article.entity';
 
 export class CreateArticleDto {
   @IsString()
@@ -6,6 +7,9 @@ export class CreateArticleDto {
 
   @IsString()
   content: string;
+
+  @IsEnum(ArticleStatus)
+  status: ArticleStatus;
 
   @IsOptional()
   @IsUUID()

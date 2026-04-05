@@ -19,7 +19,7 @@ export class ArticlesService {
       id: randomUUID(),
       title: article.title,
       content: article.content,
-      status: ArticleStatus.DRAFT,
+      status: article.status,
       authorId: article.authorId,
       categoryId: article.categoryId,
       tags: article.tags,
