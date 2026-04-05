@@ -1,11 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { Article, ArticleStatus } from './entities/article.entity';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ArticlesService {
-  create(createArticleDto: CreateArticleDto) {
-    return 'This action adds a new article';
+  private articles: Article[] = [];
+
+  create(article: CreateArticleDto) {
+    const newArticle = {
+      id: randomUUID(),
+      title: article.title,
+      content: article.content,
+      status: ArticleStatus.DRAFT,
+      authorId: article.authorId,
+      categoryId: article.categoryId,
+      tags: article.tags,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    this.articles.push(newArticle);
+
+    return newArticle;
   }
 
   findAll() {
