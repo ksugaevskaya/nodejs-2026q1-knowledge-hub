@@ -1,11 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { Category } from './entities/category.entity';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class CategoriesService {
+  private categories: Category[] = [];
+
   create(createCategoryDto: CreateCategoryDto) {
-    return 'This action adds a new category';
+    const newCategory = {
+      id: randomUUID(),
+      name: createCategoryDto.name,
+      description: createCategoryDto.description,
+    };
+
+    this.categories.push(newCategory);
+
+    return newCategory;
   }
 
   findAll() {
