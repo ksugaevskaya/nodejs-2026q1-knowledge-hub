@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { UpdateCommentDto } from './dto/update-comment.dto';
 import { randomUUID } from 'crypto';
 import { CommentType } from './entities/comment.entity';
 
@@ -21,16 +20,18 @@ export class CommentsService {
     return newComment;
   }
 
-  findAll() {
-    return `This action returns all comments`;
-  }
+  getAll(articleId: string) {
+    let result = this.comments;
 
-  findOne(id: number) {
-    return `This action returns a #${id} comment`;
-  }
+    if (!articleId) {
+      throw new BadRequestException('ArticleId is required');
+    }
 
-  update(id: number, updateCommentDto: UpdateCommentDto) {
-    return `This action updates a #${id} comment`;
+    if (articleId) {
+      result = result.filter((item) => item.articleId === articleId);
+    }
+
+    return result;
   }
 
   remove(id: number) {
