@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -62,13 +63,45 @@ export class ArticlesService {
     return article;
   }
 
-  update(id: number, updateArticleDto: UpdateArticleDto) {
-    return `This action updates a #${id} article`;
+  update(id: string, updateArticleDto: UpdateArticleDto) {
+    if (!isUuid(id)) {
+      throw new BadGatewayException('Invalid id format');
+    }
+
+    const article = this.articles.find((item) => item.id === id);
+
+    if (updateArticleDto.title) {
+      article.title = updateArticleDto.title;
+    }
+
+    if (updateArticleDto.content) {
+      article.content = updateArticleDto.content;
+    }
+
+    if (updateArticleDto.status) {
+      article.status = updateArticleDto.status;
+    }
+
+    if (updateArticleDto.categoryId) {
+      article.categoryId = updateArticleDto.categoryId;
+    }
+
+    if (updateArticleDto.authorId) {
+      article.authorId = updateArticleDto.authorId;
+    }
+
+    if (updateArticleDto.tags) {
+      article.tags = updateArticleDto.tags;
+    }
+
+    article.updatedAt = Date.now();
+
+    return article;
   }
 
   remove(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid userId format');
+      throw new BadRequestException('Invalid id format');
     }
 
     const articleIndex = this.articles.findIndex(
