@@ -2,16 +2,24 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { Article } from './entities/article.entity';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
+import { CommentsService } from '../comments/comments.service';
 
 @Injectable()
 export class ArticlesService {
   private articles: Article[] = [];
+
+  constructor(
+    @Inject(forwardRef(() => CommentsService))
+    private readonly commentsService: CommentsService,
+  ) {}
 
   create(article: CreateArticleDto) {
     const newArticle = {
@@ -115,6 +123,7 @@ export class ArticlesService {
       throw new NotFoundException('Article not found');
     }
 
+    this.commentsService.removeByArticleId(id);
     this.articles.splice(articleIndex, 1);
   }
 }

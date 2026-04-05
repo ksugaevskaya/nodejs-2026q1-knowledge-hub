@@ -3,6 +3,8 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { randomUUID } from 'crypto';
@@ -14,7 +16,10 @@ import { ArticlesService } from '../articles/articles.service';
 export class CommentsService {
   private comments: CommentType[] = [];
 
-  constructor(private readonly articlesService: ArticlesService) {}
+  constructor(
+    @Inject(forwardRef(() => ArticlesService))
+    private readonly articlesService: ArticlesService,
+  ) {}
 
   create(createCommentDto: CreateCommentDto) {
     try {
@@ -75,5 +80,11 @@ export class CommentsService {
     }
 
     this.comments.splice(commentIndex, 1);
+  }
+
+  removeByArticleId(articleId: string) {
+    this.comments = this.comments.filter(
+      (item) => item.articleId !== articleId,
+    );
   }
 }
