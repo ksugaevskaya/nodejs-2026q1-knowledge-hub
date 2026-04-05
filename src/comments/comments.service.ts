@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { randomUUID } from 'crypto';
 import { CommentType } from './entities/comment.entity';
+import { validate as isUuid } from 'uuid';
 
 @Injectable()
 export class CommentsService {
@@ -34,7 +39,17 @@ export class CommentsService {
     return result;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} comment`;
+  remove(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    const commentIndex = this.comments.findIndex((item) => item.id === id);
+
+    if (commentIndex === -1) {
+      throw new NotFoundException('Category not found');
+    }
+
+    this.comments.splice(commentIndex, 1);
   }
 }
