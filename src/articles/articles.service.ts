@@ -1,5 +1,4 @@
 import {
-  BadGatewayException,
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -65,7 +64,7 @@ export class ArticlesService {
 
   update(id: string, updateArticleDto: UpdateArticleDto) {
     if (!isUuid(id)) {
-      throw new BadGatewayException('Invalid id format');
+      throw new BadRequestException('Invalid id format');
     }
 
     const article = this.articles.find((item) => item.id === id);
