@@ -182,3 +182,16 @@ npm run format
 Press <kbd>F5</kbd> to debug.
 
 For more information, visit: https://code.visualstudio.com/docs/editor/debugging
+
+## 🐳 Docker Image
+
+The application image is available on Docker Hub:
+
+👉 https://hub.docker.com/r/ksugaevskaya/knowledge-hub-api
+
+### Run the application
+
+```bash
+docker pull ksugaevskaya/knowledge-hub-api:latest
+docker run -p 4000:4000 ksugaevskaya/knowledge-hub-api:latest
+```
