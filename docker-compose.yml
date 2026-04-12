@@ -42,6 +42,20 @@ services:
     networks:
       - app-network
 
+  adminer:
+    image: adminer:latest
+    container_name: knowledge-hub-adminer
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - debug
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
