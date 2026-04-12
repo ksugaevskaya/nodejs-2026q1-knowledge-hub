@@ -14,6 +14,7 @@ import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { SortOrder } from '../common/types';
+import { ArticleStatus } from '@prisma/client';
 
 @Controller('article')
 export class ArticlesController {
@@ -26,7 +27,7 @@ export class ArticlesController {
 
   @Get()
   getAll(
-    @Query('status') status: string,
+    @Query('status') status: ArticleStatus,
     @Query('categoryId') categoryId: string,
     @Query('tag') tag: string,
     @Query('sortBy') sortBy?: string,

@@ -2,13 +2,18 @@ version: '3.9'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        DATABASE_URL: ${DATABASE_URL_DOCKER}
     container_name: knowledge-hub-api
     depends_on:
       db:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER}
     ports:
       - '4000:4000'
     healthcheck:

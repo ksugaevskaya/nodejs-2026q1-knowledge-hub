@@ -2,152 +2,196 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
-import { Article } from './entities/article.entity';
-import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
-import { CommentsService } from '../comments/comments.service';
-import { sortItems } from '../common/sorting.util';
 import { SortOrder } from '../common/types';
+import { PrismaService } from '../prisma/prisma.service';
+import { ArticleStatus } from '@prisma/client';
 
 @Injectable()
 export class ArticlesService {
-  private articles: Article[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    @Inject(forwardRef(() => CommentsService))
-    private readonly commentsService: CommentsService,
-  ) {}
-
-  create(article: CreateArticleDto) {
-    const newArticle = {
-      id: randomUUID(),
+  private mapArticle(article: {
+    id: string;
+    title: string;
+    content: string;
+    status: ArticleStatus;
+    authorId: string | null;
+    categoryId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    articleTags?: { tag: { name: string } }[];
+  }) {
+    return {
+      id: article.id,
       title: article.title,
       content: article.content,
       status: article.status,
       authorId: article.authorId,
       categoryId: article.categoryId,
-      tags: article.tags,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      tags: article.articleTags?.map(({ tag }) => tag.name) ?? [],
+      createdAt: article.createdAt.getTime(),
+      updatedAt: article.updatedAt.getTime(),
     };
-
-    this.articles.push(newArticle);
-
-    return newArticle;
   }
 
-  getAll(
-    status: string,
-    categoryId: string,
-    tag: string,
+  async create(article: CreateArticleDto) {
+    const { tags, ...articleData } = article;
+
+    const createdArticle = await this.prisma.article.create({
+      data: {
+        ...articleData,
+        articleTags: tags
+          ? {
+              create: tags.map((tagName) => ({
+                tag: {
+                  connectOrCreate: {
+                    where: { name: tagName },
+                    create: { name: tagName },
+                  },
+                },
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        articleTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+    });
+
+    return this.mapArticle(createdArticle);
+  }
+
+  async getAll(
+    status?: ArticleStatus,
+    categoryId?: string,
+    tag?: string,
     sortBy?: string,
     order?: SortOrder,
   ) {
-    let results = this.articles;
+    const orderByClause = sortBy
+      ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' }
+      : undefined;
 
-    if (status) {
-      results = results.filter((item) => item.status === status);
-    }
-
-    if (categoryId) {
-      results = results.filter((item) => item.categoryId === categoryId);
-    }
-
-    if (tag) {
-      results = results.filter((item) => item.tags.includes(tag));
-    }
-
-    return sortItems(results, sortBy, order);
-  }
-
-  getOne(id: string) {
-    if (!isUuid(id)) {
-      throw new BadRequestException('Invalid userId format');
-    }
-    const article = this.articles.find((item) => item.id === id);
-
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
-
-    return article;
-  }
-
-  update(id: string, updateArticleDto: UpdateArticleDto) {
-    if (!isUuid(id)) {
-      throw new BadRequestException('Invalid id format');
-    }
-
-    const article = this.articles.find((item) => item.id === id);
-
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
-
-    if (updateArticleDto.title) {
-      article.title = updateArticleDto.title;
-    }
-
-    if (updateArticleDto.content) {
-      article.content = updateArticleDto.content;
-    }
-
-    if (updateArticleDto.status) {
-      article.status = updateArticleDto.status;
-    }
-
-    if (updateArticleDto.categoryId) {
-      article.categoryId = updateArticleDto.categoryId;
-    }
-
-    if (updateArticleDto.authorId) {
-      article.authorId = updateArticleDto.authorId;
-    }
-
-    if (updateArticleDto.tags) {
-      article.tags = updateArticleDto.tags;
-    }
-
-    article.updatedAt = Date.now();
-
-    return article;
-  }
-
-  remove(id: string) {
-    if (!isUuid(id)) {
-      throw new BadRequestException('Invalid id format');
-    }
-
-    const articleIndex = this.articles.findIndex(
-      (article) => article.id === id,
-    );
-
-    if (articleIndex === -1) {
-      throw new NotFoundException('Article not found');
-    }
-
-    this.commentsService.removeByArticleId(id);
-    this.articles.splice(articleIndex, 1);
-  }
-
-  nullifyCategoryId(categoryId: string) {
-    this.articles.forEach((article) => {
-      if (article.categoryId === categoryId) {
-        article.categoryId = null;
-      }
+    const articles = await this.prisma.article.findMany({
+      orderBy: orderByClause,
+      where: {
+        ...(status && { status }),
+        ...(categoryId && { categoryId }),
+        ...(tag && {
+          articleTags: {
+            some: {
+              tag: {
+                name: tag,
+              },
+            },
+          },
+        }),
+      },
+      include: {
+        articleTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
     });
+
+    return articles.map((article) => this.mapArticle(article));
   }
 
-  nullifyAuthorId(userId: string) {
-    this.articles.forEach((article) => {
-      if (article.authorId === userId) {
-        article.authorId = null;
-      }
+  async getOne(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid articleId format');
+    }
+
+    const article = await this.prisma.article.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        articleTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    return this.mapArticle(article);
+  }
+
+  async update(id: string, updateArticleDto: UpdateArticleDto) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid id format');
+    }
+
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    const { tags, ...articleData } = updateArticleDto;
+
+    const updatedArticle = await this.prisma.article.update({
+      where: { id },
+      data: {
+        ...articleData,
+        ...(tags && {
+          articleTags: {
+            deleteMany: {},
+            create: tags.map((tagName) => ({
+              tag: {
+                connectOrCreate: {
+                  where: { name: tagName },
+                  create: { name: tagName },
+                },
+              },
+            })),
+          },
+        }),
+      },
+      include: {
+        articleTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+    });
+
+    return this.mapArticle(updatedArticle);
+  }
+
+  async remove(id: string) {
+    if (!isUuid(id)) {
+      throw new BadRequestException('Invalid id format');
+    }
+
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    await this.prisma.article.delete({
+      where: { id },
     });
   }
 }

@@ -6,62 +6,90 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-user-password.dto';
-import { User, UserRole } from './entities/user.entity';
-import { randomUUID } from 'crypto';
+import { UserRole } from './entities/user.entity';
 import { validate as isUuid } from 'uuid';
-import { ArticlesService } from '../articles/articles.service';
-import { CommentsService } from '../comments/comments.service';
-import { sortItems } from '../common/sorting.util';
+import { PrismaService } from '../prisma/prisma.service';
 import { SortOrder } from '../common/types';
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    private readonly articlesService: ArticlesService,
-    private readonly commentsService: CommentsService,
-  ) {}
+  async create(user: CreateUserDto) {
+    try {
+      const newUser = await this.prisma.user.create({
+        data: {
+          login: user.login,
+          password: user.password,
+          role: user.role || UserRole.VIEWER,
+        },
+        select: {
+          id: true,
+          login: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
 
-  create(user: CreateUserDto) {
-    const newUser: User = {
-      id: randomUUID(),
-      login: user.login,
-      password: user.password,
-      role: user.role || UserRole.VIEWER,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    this.users.push(newUser);
-
-    return {
-      id: newUser.id,
-      login: newUser.login,
-      role: newUser.role,
-      createdAt: newUser.createdAt,
-      updatedAt: newUser.updatedAt,
-    };
+      return {
+        id: newUser.id,
+        login: newUser.login,
+        role: newUser.role,
+        createdAt: newUser.createdAt.getTime(),
+        updatedAt: newUser.updatedAt.getTime(),
+      };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Unique constraint failed')
+      ) {
+        throw new BadRequestException('Login already exists');
+      }
+      throw error;
+    }
   }
 
-  getAll(sortBy?: string, order?: SortOrder) {
-    const allUsers = this.users.map((user) => ({
+  async getAll(sortBy?: string, order?: SortOrder) {
+    const orderByClause = sortBy
+      ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' }
+      : undefined;
+
+    const allUsers = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        login: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: orderByClause,
+    });
+
+    return allUsers.map((user) => ({
       id: user.id,
       login: user.login,
       role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.getTime(),
+      updatedAt: user.updatedAt.getTime(),
     }));
-
-    return sortItems(allUsers, sortBy, order);
   }
 
-  getOne(id: string) {
+  async getOne(id: string) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid userId format');
     }
 
-    const user = this.users.find((user) => user.id === id);
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        login: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -71,17 +99,19 @@ export class UsersService {
       id: user.id,
       login: user.login,
       role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.getTime(),
+      updatedAt: user.updatedAt.getTime(),
     };
   }
 
-  updatePassword(id: string, updatePasswordDto: UpdatePasswordDto) {
+  async updatePassword(id: string, updatePasswordDto: UpdatePasswordDto) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid userId format');
     }
 
-    const user = this.users.find((user) => user.id === id);
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -91,31 +121,51 @@ export class UsersService {
       throw new ForbiddenException('Old password is incorrect');
     }
 
-    user.password = updatePasswordDto.newPassword;
-    user.updatedAt = Date.now();
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { password: updatePasswordDto.newPassword },
+      select: {
+        id: true,
+        login: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     return {
-      id: user.id,
-      login: user.login,
-      role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      id: updatedUser.id,
+      login: updatedUser.login,
+      role: updatedUser.role,
+      createdAt: updatedUser.createdAt.getTime(),
+      updatedAt: updatedUser.updatedAt.getTime(),
     };
   }
 
-  remove(id: string) {
+  async remove(id: string) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid userId format');
     }
 
-    const userIndex = this.users.findIndex((user) => user.id === id);
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
 
-    if (userIndex === -1) {
+    if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    this.articlesService.nullifyAuthorId(id);
-    this.commentsService.removeByAuthorId(id);
-    this.users.splice(userIndex, 1);
+    await this.prisma.$transaction([
+      this.prisma.article.updateMany({
+        where: { authorId: id },
+        data: { authorId: null },
+      }),
+      this.prisma.comment.deleteMany({
+        where: { authorId: id },
+      }),
+      this.prisma.user.delete({
+        where: { id },
+      }),
+    ]);
   }
 }

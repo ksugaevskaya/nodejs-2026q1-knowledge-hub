@@ -29,11 +29,58 @@ Create a `.env` file in the root directory with the following variables:
 
 ```env
 PORT=4000
+
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DB=knowledge_hub
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
+DATABASE_URL="postgresql://user:password@localhost:5432/knowledge_hub"
+DATABASE_URL_DOCKER="postgresql://user:password@db:5432/knowledge_hub"
 ```
 
 The `.env.example` file with default values is already provided.
 
 ## Running the Application
+
+Just run:
+
+```
+docker compose up --build
+```
+
+Then wait for
+
+```
+LOG [NestApplication] Nest application successfully started
+```
+
+And you can test the app. All migration/schema generation/data seed etc. will be handled automatically.
+
+If you want to test manually then keep reading guide below.
+
+### Prepare DB
+
+Before starting the app you need to stop docker service with running BE (you can do it from Docker app). Then you need to run following commands:
+
+1. To generate prisma types
+
+```
+npx prisma generate
+```
+
+2. If database migration wasn't run by docker
+
+```
+npx prisma migrate dev
+```
+
+3. If seed wasn't run by docker
+
+```
+npx prisma db seed
+```
 
 ### Development mode
 
