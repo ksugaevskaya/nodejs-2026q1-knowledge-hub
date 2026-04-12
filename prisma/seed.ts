@@ -15,7 +15,7 @@ async function main() {
     data: {
       login: 'admin',
       password: 'admin123!',
-      role: Role.ADMIN,
+      role: Role.admin,
     },
   });
 
@@ -23,7 +23,7 @@ async function main() {
     data: {
       login: 'editor',
       password: 'editor123!',
-      role: Role.EDITOR,
+      role: Role.editor,
     },
   });
 
@@ -101,7 +101,7 @@ async function main() {
       title: 'Node.js in 2026',
       content:
         'You should learn Node.js fundamentals, modules, and working with APIs.',
-      status: ArticleStatus.DRAFT,
+      status: ArticleStatus.draft,
       authorId: editor.id,
       categoryId: technology.id,
     },
@@ -120,7 +120,7 @@ async function main() {
       title: 'How AI changes everyday work',
       content:
         'Artificial intelligence is becoming part of daily work, learning, and communication.',
-      status: ArticleStatus.PUBLISHED,
+      status: ArticleStatus.published,
       authorId: editor.id,
       categoryId: ai.id,
     },
@@ -139,7 +139,7 @@ async function main() {
       title: 'Why science still matters',
       content:
         'Scientific research helps people better understand the world and make informed decisions.',
-      status: ArticleStatus.PUBLISHED,
+      status: ArticleStatus.published,
       authorId: editor.id,
       categoryId: science.id,
     },
@@ -156,7 +156,7 @@ async function main() {
     data: {
       title: 'Trends in Web Development',
       content: 'Some web development trends become less relevant over time.',
-      status: ArticleStatus.ARCHIVED,
+      status: ArticleStatus.archived,
       authorId: editor.id,
       categoryId: technology.id,
     },
@@ -174,7 +174,7 @@ async function main() {
       title: 'The future of space research',
       content:
         'Space research continues to grow and opens new opportunities for science and technology.',
-      status: ArticleStatus.DRAFT,
+      status: ArticleStatus.draft,
       authorId: editor.id,
       categoryId: science.id,
     },
