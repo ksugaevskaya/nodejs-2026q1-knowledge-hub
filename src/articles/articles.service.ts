@@ -14,10 +14,34 @@ import { ArticleStatus } from '@prisma/client';
 export class ArticlesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private mapArticle(article: {
+    id: string;
+    title: string;
+    content: string;
+    status: ArticleStatus;
+    authorId: string | null;
+    categoryId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    articleTags?: { tag: { name: string } }[];
+  }) {
+    return {
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      status: article.status,
+      authorId: article.authorId,
+      categoryId: article.categoryId,
+      tags: article.articleTags?.map(({ tag }) => tag.name) ?? [],
+      createdAt: article.createdAt.getTime(),
+      updatedAt: article.updatedAt.getTime(),
+    };
+  }
+
   async create(article: CreateArticleDto) {
     const { tags, ...articleData } = article;
 
-    return await this.prisma.article.create({
+    const createdArticle = await this.prisma.article.create({
       data: {
         ...articleData,
         articleTags: tags
@@ -41,6 +65,8 @@ export class ArticlesService {
         },
       },
     });
+
+    return this.mapArticle(createdArticle);
   }
 
   async getAll(
@@ -54,7 +80,7 @@ export class ArticlesService {
       ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' }
       : undefined;
 
-    return await this.prisma.article.findMany({
+    const articles = await this.prisma.article.findMany({
       orderBy: orderByClause,
       where: {
         ...(status && { status }),
@@ -77,6 +103,8 @@ export class ArticlesService {
         },
       },
     });
+
+    return articles.map((article) => this.mapArticle(article));
   }
 
   async getOne(id: string) {
@@ -88,13 +116,20 @@ export class ArticlesService {
       where: {
         id,
       },
+      include: {
+        articleTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
     });
 
     if (!article) {
       throw new NotFoundException('Article not found');
     }
 
-    return article;
+    return this.mapArticle(article);
   }
 
   async update(id: string, updateArticleDto: UpdateArticleDto) {
@@ -112,7 +147,7 @@ export class ArticlesService {
 
     const { tags, ...articleData } = updateArticleDto;
 
-    return await this.prisma.article.update({
+    const updatedArticle = await this.prisma.article.update({
       where: { id },
       data: {
         ...articleData,
@@ -138,6 +173,8 @@ export class ArticlesService {
         },
       },
     });
+
+    return this.mapArticle(updatedArticle);
   }
 
   async remove(id: string) {
