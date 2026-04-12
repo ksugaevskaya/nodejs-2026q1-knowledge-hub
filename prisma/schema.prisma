@@ -36,6 +36,9 @@ model Article {
   articleTags ArticleTag[]
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
+
+  @@index([status])
+  @@index([categoryId])
 }
 
 enum ArticleStatus {
