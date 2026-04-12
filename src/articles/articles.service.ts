@@ -145,12 +145,16 @@ export class ArticlesService {
       throw new BadRequestException('Invalid id format');
     }
 
-    const article = this.prisma.article.findUnique({
+    const article = await this.prisma.article.findUnique({
       where: { id },
     });
 
     if (!article) {
       throw new NotFoundException('Article not found');
     }
+
+    await this.prisma.article.delete({
+      where: { id },
+    });
   }
 }

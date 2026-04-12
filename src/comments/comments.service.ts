@@ -81,5 +81,9 @@ export class CommentsService {
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
+
+    await this.prisma.comment.delete({
+      where: { id },
+    });
   }
 }
