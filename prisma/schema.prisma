@@ -12,6 +12,8 @@ model User {
   login     String   @unique
   password  String
   role      Role     @default(VIEWER)
+  articles  Article[]
+  comments  Comment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -23,12 +25,18 @@ enum Role {
 }
 
 model Article {
-  id         String   @id @default(uuid()) @db.Uuid
+  id         String         @id @default(uuid()) @db.Uuid
   title      String
   content    String
   status     ArticleStatus  @default(DRAFT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  authorId   String?         @db.Uuid
+  author     User?           @relation(fields: [authorId], references: [id])
+  categoryId String?         @db.Uuid
+  category   Category?       @relation(fields: [categoryId], references: [id])
+  comments   Comment[]
+  tags       Tag[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 }
 
 enum ArticleStatus {
@@ -41,15 +49,21 @@ model Category {
   id            String   @id @default(uuid()) @db.Uuid
   name          String
   description   String
+  articles      Article[]
 }
 
 model Comment {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
   content       String
-  createdAt     DateTime @default(now())
+  authorId      String?   @db.Uuid
+  author        User?     @relation(fields: [authorId], references: [id])
+  articleId     String    @db.Uuid
+  article       Article   @relation(fields: [articleId], references: [id])
+  createdAt     DateTime  @default(now())
 }
 
 model Tag {
   id           String   @id @default(uuid()) @db.Uuid
   name         String    @unique
+  articles     Article[]
 }
