@@ -15,13 +15,16 @@ export class CommentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createCommentDto: CreateCommentDto) {
-    try {
-      this.prisma.article.findFirstOrThrow({
-        where: {
-          id: createCommentDto.articleId,
-        },
-      });
-    } catch {
+    const article = await this.prisma.article.findUnique({
+      where: {
+        id: createCommentDto.articleId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!article) {
       throw new UnprocessableEntityException('Article not found');
     }
 
