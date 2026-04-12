@@ -10,7 +10,7 @@ model User {
   id        String   @id @default(uuid()) @db.Uuid
   login     String   @unique
   password  String
-  role      Role     @default(VIEWER)
+  role      Role     @default(viewer)
   articles  Article[]
   comments  Comment[]
   createdAt DateTime @default(now())
@@ -18,16 +18,16 @@ model User {
 }
 
 enum Role {
-  ADMIN
-  EDITOR
-  VIEWER
+  admin
+  editor
+  viewer
 }
 
 model Article {
   id         String         @id @default(uuid()) @db.Uuid
   title      String
   content    String
-  status     ArticleStatus  @default(DRAFT)
+  status     ArticleStatus  @default(draft)
   authorId   String?         @db.Uuid
   author     User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
   categoryId String?         @db.Uuid
@@ -39,9 +39,9 @@ model Article {
 }
 
 enum ArticleStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
+  draft
+  published
+  archived
 }
 
 model Category {
