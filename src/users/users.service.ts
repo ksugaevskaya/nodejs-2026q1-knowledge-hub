@@ -155,8 +155,17 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    await this.prisma.user.delete({
-      where: { id },
-    });
+    await this.prisma.$transaction([
+      this.prisma.article.updateMany({
+        where: { authorId: id },
+        data: { authorId: null },
+      }),
+      this.prisma.comment.deleteMany({
+        where: { authorId: id },
+      }),
+      this.prisma.user.delete({
+        where: { id },
+      }),
+    ]);
   }
 }
