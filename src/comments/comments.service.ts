@@ -14,6 +14,22 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class CommentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private mapComment(comment: {
+    id: string;
+    content: string;
+    articleId: string;
+    authorId: string | null;
+    createdAt: Date;
+  }) {
+    return {
+      id: comment.id,
+      content: comment.content,
+      articleId: comment.articleId,
+      authorId: comment.authorId,
+      createdAt: comment.createdAt.getTime(),
+    };
+  }
+
   async create(createCommentDto: CreateCommentDto) {
     const article = await this.prisma.article.findUnique({
       where: {
@@ -28,13 +44,15 @@ export class CommentsService {
       throw new UnprocessableEntityException('Article not found');
     }
 
-    return await this.prisma.comment.create({
+    const createdComment = await this.prisma.comment.create({
       data: {
         content: createCommentDto.content,
         articleId: createCommentDto.articleId,
         authorId: createCommentDto.authorId,
       },
     });
+
+    return this.mapComment(createdComment);
   }
 
   async getAll(articleId: string, sortBy?: string, order?: SortOrder) {
@@ -46,12 +64,14 @@ export class CommentsService {
       throw new BadRequestException('ArticleId is required');
     }
 
-    return await this.prisma.comment.findMany({
+    const comments = await this.prisma.comment.findMany({
       orderBy: orderByClause,
       where: {
         articleId,
       },
     });
+
+    return comments.map((comment) => this.mapComment(comment));
   }
 
   async getOne(id: string) {
@@ -69,7 +89,7 @@ export class CommentsService {
       throw new NotFoundException('Comment not found');
     }
 
-    return comment;
+    return this.mapComment(comment);
   }
 
   async remove(id: string) {
