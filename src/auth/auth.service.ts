@@ -1,12 +1,48 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SignupDto } from './dto/signup';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from 'src/users/entities/user.entity';
+import { LoginDto } from './dto/login';
+import { User } from '@prisma/client';
+import { config } from 'dotenv';
+import { JwtService } from '@nestjs/jwt';
+
+config();
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
+
+  async generateTokens(user: User) {
+    const payload = {
+      userId: user.id,
+      login: user.login,
+      role: user.role,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_SECRET_KEY,
+      expiresIn: process.env.TOKEN_EXPIRE_TIME,
+    });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_SECRET_REFRESH_KEY,
+      expiresIn: process.env.TOKEN_REFRESH_EXPIRE_TIME,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
 
   async signUp(data: SignupDto) {
     const existingUser = this.prisma.user.findFirst({
@@ -35,5 +71,28 @@ export class AuthService {
     });
 
     return user;
+  }
+
+  async login(data: LoginDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        login: data.login,
+      },
+    });
+
+    if (!user) {
+      throw new ForbiddenException('Invalid credentials');
+    }
+
+    const isPasswordMatched = await bcrypt.compare(
+      data.password,
+      user.password,
+    );
+
+    if (!isPasswordMatched) {
+      throw new ForbiddenException('Invalid credentials');
+    }
+
+    return this.generateTokens(user);
   }
 }
