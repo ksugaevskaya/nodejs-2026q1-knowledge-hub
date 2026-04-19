@@ -1,5 +1,4 @@
-import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { UserRole } from 'src/users/entities/user.entity';
+import { IsString, MinLength } from 'class-validator';
 
 export class SignupDto {
   @IsString()
@@ -8,8 +7,4 @@ export class SignupDto {
   @IsString()
   @MinLength(1)
   password: string;
-
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
 }

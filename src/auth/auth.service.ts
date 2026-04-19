@@ -63,7 +63,7 @@ export class AuthService {
       data: {
         login: data.login,
         password: hashedPassword,
-        role: data.role || UserRole.VIEWER,
+        role: UserRole.VIEWER,
       },
       select: {
         id: true,
