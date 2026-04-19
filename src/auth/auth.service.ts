@@ -1,26 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/signup';
-import { UpdateAuthDto } from './dto/login';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { SignupDto } from './dto/signup';
+import * as bcrypt from 'bcrypt';
+import { UserRole } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
-    return `This action returns all auth`;
-  }
+  async signUp(data: SignupDto) {
+    const existingUser = this.prisma.user.findFirst({
+      where: {
+        login: data.login,
+      },
+    });
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+    if (existingUser) {
+      throw new BadRequestException('Login is already taken');
+    }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    const user = this.prisma.user.create({
+      data: {
+        login: data.login,
+        password: hashedPassword,
+        role: data.role || UserRole.VIEWER,
+      },
+      select: {
+        id: true,
+        login: true,
+        role: true,
+      },
+    });
+
+    return user;
   }
 }
