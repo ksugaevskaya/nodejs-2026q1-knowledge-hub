@@ -10,6 +10,7 @@ import { UserRole } from './entities/user.entity';
 import { validate as isUuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { SortOrder } from '../common/types';
+import { AuthUser } from 'src/auth/auth-user.interface';
 
 @Injectable()
 export class UsersService {
@@ -104,26 +105,62 @@ export class UsersService {
     };
   }
 
-  async updatePassword(id: string, updatePasswordDto: UpdatePasswordDto) {
+  async updatePassword(
+    id: string,
+    updatePasswordDto: UpdatePasswordDto,
+    currentUser: AuthUser,
+  ) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid userId format');
     }
 
+    if (currentUser.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const hasRoleUpdate = updatePasswordDto.role !== undefined;
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
+
+    const hasPasswordUpdate =
+      updatePasswordDto.oldPassword !== undefined ||
+      updatePasswordDto.newPassword !== undefined;
+
+    if (!hasPasswordUpdate && !hasRoleUpdate) {
+      throw new BadRequestException(
+        'At least one of oldPassword/newPassword or role is required',
+      );
+    }
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (user.password !== updatePasswordDto.oldPassword) {
+    if (
+      hasPasswordUpdate &&
+      (!updatePasswordDto.oldPassword || !updatePasswordDto.newPassword)
+    ) {
+      throw new BadRequestException(
+        'Both oldPassword and newPassword are required',
+      );
+    }
+
+    if (
+      updatePasswordDto.oldPassword &&
+      user.password !== updatePasswordDto.oldPassword
+    ) {
       throw new ForbiddenException('Old password is incorrect');
     }
 
     const updatedUser = await this.prisma.user.update({
       where: { id },
-      data: { password: updatePasswordDto.newPassword },
+      data: {
+        ...(updatePasswordDto.newPassword && {
+          password: updatePasswordDto.newPassword,
+        }),
+        ...(updatePasswordDto.role && { role: updatePasswordDto.role }),
+      },
       select: {
         id: true,
         login: true,

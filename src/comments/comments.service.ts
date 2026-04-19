@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -9,6 +10,8 @@ import { validate as isUuid } from 'uuid';
 
 import { SortOrder } from '../common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AuthUser } from 'src/auth/auth-user.interface';
+import { UserRole } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class CommentsService {
@@ -30,7 +33,7 @@ export class CommentsService {
     };
   }
 
-  async create(createCommentDto: CreateCommentDto) {
+  async create(createCommentDto: CreateCommentDto, currentUser: AuthUser) {
     const article = await this.prisma.article.findUnique({
       where: {
         id: createCommentDto.articleId,
@@ -44,11 +47,24 @@ export class CommentsService {
       throw new UnprocessableEntityException('Article not found');
     }
 
+    const isAdmin = currentUser.role === UserRole.ADMIN;
+    if (
+      !isAdmin &&
+      createCommentDto.authorId &&
+      createCommentDto.authorId !== currentUser.userId
+    ) {
+      throw new ForbiddenException(
+        'Editors can create only their own comments',
+      );
+    }
+
     const createdComment = await this.prisma.comment.create({
       data: {
         content: createCommentDto.content,
         articleId: createCommentDto.articleId,
-        authorId: createCommentDto.authorId,
+        authorId: isAdmin
+          ? (createCommentDto.authorId ?? null)
+          : currentUser.userId,
       },
     });
 
@@ -92,7 +108,7 @@ export class CommentsService {
     return this.mapComment(comment);
   }
 
-  async remove(id: string) {
+  async remove(id: string, currentUser: AuthUser) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid commentId format');
     }
@@ -103,6 +119,15 @@ export class CommentsService {
 
     if (!comment) {
       throw new NotFoundException('Comment not found');
+    }
+
+    if (
+      currentUser.role !== UserRole.ADMIN &&
+      comment.authorId !== currentUser.userId
+    ) {
+      throw new ForbiddenException(
+        'Editors can delete only their own comments',
+      );
     }
 
     await this.prisma.comment.delete({

@@ -9,20 +9,28 @@ import {
   HttpCode,
   Put,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { SortOrder } from '../common/types';
 import { ArticleStatus } from '@prisma/client';
+import { Roles } from 'src/auth/roles-decorator';
+import { UserRole } from 'src/users/entities/user.entity';
+import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
 
 @Controller('article')
 export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 
   @Post()
-  create(@Body() createArticleDto: CreateArticleDto) {
-    return this.articlesService.create(createArticleDto);
+  @Roles(UserRole.ADMIN, UserRole.EDITOR)
+  create(
+    @Body() createArticleDto: CreateArticleDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.articlesService.create(createArticleDto, req.user);
   }
 
   @Get()
@@ -42,12 +50,18 @@ export class ArticlesController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateArticleDto: UpdateArticleDto) {
-    return this.articlesService.update(id, updateArticleDto);
+  @Roles(UserRole.ADMIN, UserRole.EDITOR)
+  update(
+    @Param('id') id: string,
+    @Body() updateArticleDto: UpdateArticleDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.articlesService.update(id, updateArticleDto, req.user);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN)
   remove(@Param('id') id: string) {
     return this.articlesService.remove(id);
   }

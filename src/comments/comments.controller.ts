@@ -8,18 +8,26 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { SortOrder } from '../common/types';
+import { Roles } from 'src/auth/roles-decorator';
+import { UserRole } from 'src/users/entities/user.entity';
+import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
 
 @Controller('comment')
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Post()
-  create(@Body() createCommentDto: CreateCommentDto) {
-    return this.commentsService.create(createCommentDto);
+  @Roles(UserRole.ADMIN, UserRole.EDITOR)
+  create(
+    @Body() createCommentDto: CreateCommentDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commentsService.create(createCommentDto, req.user);
   }
 
   @Get()
@@ -38,7 +46,11 @@ export class CommentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.commentsService.remove(id);
+  @Roles(UserRole.ADMIN, UserRole.EDITOR)
+  remove(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commentsService.remove(id, req.user);
   }
 }

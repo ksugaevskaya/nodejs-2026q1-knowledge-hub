@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,8 @@ import { validate as isUuid } from 'uuid';
 import { SortOrder } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { ArticleStatus } from '@prisma/client';
+import { AuthUser } from 'src/auth/auth-user.interface';
+import { UserRole } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class ArticlesService {
@@ -38,12 +41,24 @@ export class ArticlesService {
     };
   }
 
-  async create(article: CreateArticleDto) {
+  async create(article: CreateArticleDto, currentUser: AuthUser) {
     const { tags, ...articleData } = article;
+    const isAdmin = currentUser.role === UserRole.ADMIN;
+
+    if (
+      !isAdmin &&
+      article.authorId &&
+      article.authorId !== currentUser.userId
+    ) {
+      throw new ForbiddenException(
+        'Editors can create only their own articles',
+      );
+    }
 
     const createdArticle = await this.prisma.article.create({
       data: {
         ...articleData,
+        authorId: isAdmin ? (article.authorId ?? null) : currentUser.userId,
         articleTags: tags
           ? {
               create: tags.map((tagName) => ({
@@ -132,7 +147,11 @@ export class ArticlesService {
     return this.mapArticle(article);
   }
 
-  async update(id: string, updateArticleDto: UpdateArticleDto) {
+  async update(
+    id: string,
+    updateArticleDto: UpdateArticleDto,
+    currentUser: AuthUser,
+  ) {
     if (!isUuid(id)) {
       throw new BadRequestException('Invalid id format');
     }
@@ -145,12 +164,28 @@ export class ArticlesService {
       throw new NotFoundException('Article not found');
     }
 
+    const isAdmin = currentUser.role === UserRole.ADMIN;
+    if (!isAdmin && article.authorId !== currentUser.userId) {
+      throw new ForbiddenException(
+        'Editors can update only their own articles',
+      );
+    }
+
+    if (
+      !isAdmin &&
+      updateArticleDto.authorId !== undefined &&
+      updateArticleDto.authorId !== currentUser.userId
+    ) {
+      throw new ForbiddenException('Editors cannot reassign article ownership');
+    }
+
     const { tags, ...articleData } = updateArticleDto;
 
     const updatedArticle = await this.prisma.article.update({
       where: { id },
       data: {
         ...articleData,
+        ...(!isAdmin && { authorId: currentUser.userId }),
         ...(tags && {
           articleTags: {
             deleteMany: {},
