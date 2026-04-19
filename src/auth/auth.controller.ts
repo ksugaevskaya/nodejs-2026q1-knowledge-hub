@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup';
 import { LoginDto } from './dto/login';
 import { RefreshDto } from './dto/refresh';
+import { LogoutDto } from './dto/logout';
 import { Public } from './public-decorator';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -40,5 +41,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   refresh(@Body() data: RefreshDto) {
     return this.authService.refresh(data);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  logout(@Body() data: LogoutDto) {
+    return this.authService.logout(data);
   }
 }
