@@ -22,7 +22,7 @@ export class AuthController {
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 100, ttl: 60_000 } })
   signUp(@Body() data: SignupDto) {
     return this.authService.signUp(data);
   }
@@ -31,7 +31,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 100, ttl: 60_000 } })
   login(@Body() data: LoginDto) {
     return this.authService.login(data);
   }
