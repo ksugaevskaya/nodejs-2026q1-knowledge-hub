@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SignupDto } from './dto/signup';
@@ -11,6 +12,7 @@ import { LoginDto } from './dto/login';
 import { User } from '@prisma/client';
 import { config } from 'dotenv';
 import { JwtService } from '@nestjs/jwt';
+import { RefreshDto } from './dto/refresh';
 
 config();
 
@@ -94,5 +96,29 @@ export class AuthService {
     }
 
     return this.generateTokens(user);
+  }
+
+  async refresh(data: RefreshDto) {
+    if (!data.refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    try {
+      const payload = await this.jwtService.verifyAsync(data.refreshToken, {
+        secret: process.env.JWT_SECRET_REFRESH_KEY,
+      });
+
+      const user = await this.prisma.user.findFirst({
+        where: { id: payload.userId },
+      });
+
+      if (!user) {
+        throw new ForbiddenException('Invalid refresh token');
+      }
+
+      return this.generateTokens(user);
+    } catch {
+      throw new ForbiddenException('Invalid or expired refresh token');
+    }
   }
 }
