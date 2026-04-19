@@ -118,17 +118,24 @@ export class UsersService {
       throw new ForbiddenException('Access denied');
     }
 
+    const hasRoleUpdate = updatePasswordDto.role !== undefined;
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
     const hasPasswordUpdate =
       updatePasswordDto.oldPassword !== undefined ||
       updatePasswordDto.newPassword !== undefined;
+
+    if (!hasPasswordUpdate && !hasRoleUpdate) {
+      throw new BadRequestException(
+        'At least one of oldPassword/newPassword or role is required',
+      );
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
     if (
       hasPasswordUpdate &&
