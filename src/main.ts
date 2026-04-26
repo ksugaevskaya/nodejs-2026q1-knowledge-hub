@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SanitizeUserResponseInterceptor } from './common/interceptors/sanitize-user-response.interceptor';
 import 'dotenv/config';
 
 async function bootstrap() {
@@ -14,6 +15,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalInterceptors(new SanitizeUserResponseInterceptor());
 
   const config = new DocumentBuilder()
     .setTitle('Knowledge Hub')
