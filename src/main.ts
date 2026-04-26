@@ -5,11 +5,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { SanitizeUserResponseInterceptor } from './common/interceptors/sanitize-user-response.interceptor';
 import { createAppLogger } from './common/logging/app-logger';
+import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
 import 'dotenv/config';
 
 async function bootstrap() {
+  const logger = createAppLogger();
   const app = await NestFactory.create(AppModule, {
-    logger: createAppLogger(),
+    logger,
     bufferLogs: true,
   });
 
@@ -20,7 +22,10 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.useGlobalInterceptors(new SanitizeUserResponseInterceptor());
+  app.useGlobalInterceptors(
+    new RequestLoggingInterceptor(logger),
+    new SanitizeUserResponseInterceptor(),
+  );
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const config = new DocumentBuilder()
