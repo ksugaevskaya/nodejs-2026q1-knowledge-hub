@@ -20,7 +20,7 @@ cd nodejs-2026q1-knowledge-hub
 ### 2. Install dependencies
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### 3. Configure environment variables
