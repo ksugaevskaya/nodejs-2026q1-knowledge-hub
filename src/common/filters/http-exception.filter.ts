@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { STATUS_CODES } from 'http';
+import { AppError } from '../errors';
 
 type ErrorBody = {
   statusCode: number;
@@ -67,7 +68,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private buildCustomErrorBody(exception: unknown, status: number): ErrorBody {
-    if (this.isErrorWithStatusCode(exception)) {
+    if (exception instanceof AppError) {
       return {
         statusCode: status,
         message: exception.message,
@@ -89,7 +90,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private resolveStatusCode(exception: unknown): number {
-    if (this.isErrorWithStatusCode(exception)) {
+    if (exception instanceof AppError) {
       return exception.statusCode;
     }
 
@@ -113,16 +114,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       },
       error.stack,
       HttpExceptionFilter.name,
-    );
-  }
-
-  private isErrorWithStatusCode(
-    exception: unknown,
-  ): exception is Error & { statusCode: number } {
-    return (
-      exception instanceof Error &&
-      'statusCode' in exception &&
-      typeof exception.statusCode === 'number'
     );
   }
 

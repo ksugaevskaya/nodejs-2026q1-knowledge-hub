@@ -6,6 +6,7 @@ import {
   LoggerService,
 } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { ForbiddenError, NotFoundError } from '../errors';
 import { HttpExceptionFilter } from './http-exception.filter';
 
 describe('HttpExceptionFilter', () => {
@@ -134,12 +135,10 @@ describe('HttpExceptionFilter', () => {
     );
   });
 
-  it('uses a numeric statusCode from non-http error objects', () => {
+  it('maps custom app errors to their declared status codes', () => {
     const filter = new HttpExceptionFilter(createLogger());
     const { host, status, json } = createHost();
-    const exception = Object.assign(new Error('Forbidden area'), {
-      statusCode: HttpStatus.FORBIDDEN,
-    });
+    const exception = new ForbiddenError('Forbidden area');
 
     filter.catch(exception, host);
 
@@ -148,6 +147,20 @@ describe('HttpExceptionFilter', () => {
       statusCode: HttpStatus.FORBIDDEN,
       message: 'Forbidden area',
       error: 'Forbidden',
+    });
+  });
+
+  it('maps custom not found errors to 404 responses', () => {
+    const filter = new HttpExceptionFilter(createLogger());
+    const { host, status, json } = createHost();
+
+    filter.catch(new NotFoundError('Article not found'), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: HttpStatus.NOT_FOUND,
+      message: 'Article not found',
+      error: 'Not Found',
     });
   });
 });
