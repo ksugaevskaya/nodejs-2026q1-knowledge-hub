@@ -18,6 +18,7 @@ import { SortOrder } from '../common/types';
 import { Roles } from 'src/auth/roles-decorator';
 import { UserRole } from './entities/user.entity';
 import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
+import { ParseUuidPipe } from 'src/common/pipes/parse-uuid.pipe';
 
 @Controller('user')
 export class UsersController {
@@ -35,14 +36,14 @@ export class UsersController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', new ParseUuidPipe('userId')) id: string) {
     return this.usersService.getOne(id);
   }
 
   @Put(':id')
   @Roles(UserRole.ADMIN)
   updatePassword(
-    @Param('id') id: string,
+    @Param('id', new ParseUuidPipe('userId')) id: string,
     @Body() updatePasswordDto: UpdatePasswordDto,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -52,7 +53,7 @@ export class UsersController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
+  remove(@Param('id', new ParseUuidPipe('userId')) id: string) {
     return this.usersService.remove(id);
   }
 }
