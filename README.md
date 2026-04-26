@@ -29,6 +29,8 @@ Create a `.env` file in the root directory with the following variables:
 
 ```env
 PORT=4000
+LOG_LEVEL=log
+LOG_MAX_FILE_SIZE=1024
 
 POSTGRES_USER=user
 POSTGRES_PASSWORD=password
@@ -41,6 +43,7 @@ DATABASE_URL_DOCKER="postgresql://user:password@db:5432/knowledge_hub"
 ```
 
 The `.env.example` file with default values is already provided.
+`LOG_LEVEL` controls the minimum log verbosity (`error`, `warn`, `log`, `debug`, `verbose`), and `LOG_MAX_FILE_SIZE` sets the log rotation threshold in kilobytes.
 
 ## Running the Application
 
