@@ -1,20 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
-  let controller: AuthController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [AuthService],
-    }).compile();
-
-    controller = module.get<AuthController>(AuthController);
-  });
-
   it('should be defined', () => {
+    const controller = new AuthController({
+      signUp: vi.fn(),
+      login: vi.fn(),
+      refresh: vi.fn(),
+      logout: vi.fn(),
+    } as unknown as AuthService);
+
     expect(controller).toBeDefined();
   });
 });
