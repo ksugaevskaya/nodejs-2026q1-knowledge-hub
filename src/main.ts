@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { SanitizeUserResponseInterceptor } from './common/interceptors/sanitize-user-response.interceptor';
 import { createAppLogger } from './common/logging/app-logger';
+import { registerProcessErrorHandlers } from './common/logging/process-error-handlers';
 import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
 import 'dotenv/config';
 
@@ -37,6 +38,8 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('doc', app, document);
+
+  registerProcessErrorHandlers(app, logger);
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
