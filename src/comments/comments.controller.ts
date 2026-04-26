@@ -16,6 +16,7 @@ import { SortOrder } from '../common/types';
 import { Roles } from 'src/auth/roles-decorator';
 import { UserRole } from 'src/users/entities/user.entity';
 import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
+import { ParseUuidPipe } from 'src/common/pipes/parse-uuid.pipe';
 
 @Controller('comment')
 export class CommentsController {
@@ -40,7 +41,7 @@ export class CommentsController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', new ParseUuidPipe('commentId')) id: string) {
     return this.commentsService.getOne(id);
   }
 
@@ -48,7 +49,7 @@ export class CommentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.EDITOR)
   remove(
-    @Param('id') id: string,
+    @Param('id', new ParseUuidPipe('commentId')) id: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.commentsService.remove(id, req.user);

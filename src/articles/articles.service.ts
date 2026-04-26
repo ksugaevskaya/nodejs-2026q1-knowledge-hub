@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { validate as isUuid } from 'uuid';
@@ -12,6 +7,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ArticleStatus } from '@prisma/client';
 import { AuthUser } from 'src/auth/auth-user.interface';
 import { UserRole } from 'src/users/entities/user.entity';
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/errors';
 
 @Injectable()
 export class ArticlesService {
@@ -50,9 +50,7 @@ export class ArticlesService {
       article.authorId &&
       article.authorId !== currentUser.userId
     ) {
-      throw new ForbiddenException(
-        'Editors can create only their own articles',
-      );
+      throw new ForbiddenError('Editors can create only their own articles');
     }
 
     const createdArticle = await this.prisma.article.create({
@@ -124,7 +122,7 @@ export class ArticlesService {
 
   async getOne(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid articleId format');
+      throw new ValidationError('Invalid articleId format');
     }
 
     const article = await this.prisma.article.findUnique({
@@ -141,7 +139,7 @@ export class ArticlesService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      throw new NotFoundError('Article not found');
     }
 
     return this.mapArticle(article);
@@ -153,7 +151,7 @@ export class ArticlesService {
     currentUser: AuthUser,
   ) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid id format');
+      throw new ValidationError('Invalid id format');
     }
 
     const article = await this.prisma.article.findUnique({
@@ -161,14 +159,12 @@ export class ArticlesService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      throw new NotFoundError('Article not found');
     }
 
     const isAdmin = currentUser.role === UserRole.ADMIN;
     if (!isAdmin && article.authorId !== currentUser.userId) {
-      throw new ForbiddenException(
-        'Editors can update only their own articles',
-      );
+      throw new ForbiddenError('Editors can update only their own articles');
     }
 
     if (
@@ -176,7 +172,7 @@ export class ArticlesService {
       updateArticleDto.authorId !== undefined &&
       updateArticleDto.authorId !== currentUser.userId
     ) {
-      throw new ForbiddenException('Editors cannot reassign article ownership');
+      throw new ForbiddenError('Editors cannot reassign article ownership');
     }
 
     const { tags, ...articleData } = updateArticleDto;
@@ -214,7 +210,7 @@ export class ArticlesService {
 
   async remove(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid id format');
+      throw new ValidationError('Invalid id format');
     }
 
     const article = await this.prisma.article.findUnique({
@@ -222,7 +218,7 @@ export class ArticlesService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      throw new NotFoundError('Article not found');
     }
 
     await this.prisma.article.delete({

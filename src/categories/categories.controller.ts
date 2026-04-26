@@ -16,6 +16,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { SortOrder } from '../common/types';
 import { Roles } from 'src/auth/roles-decorator';
 import { UserRole } from 'src/users/entities/user.entity';
+import { ParseUuidPipe } from 'src/common/pipes/parse-uuid.pipe';
 
 @Controller('category')
 export class CategoriesController {
@@ -33,14 +34,14 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', new ParseUuidPipe('categoryId')) id: string) {
     return this.categoriesService.getOne(id);
   }
 
   @Put(':id')
   @Roles(UserRole.ADMIN)
   update(
-    @Param('id') id: string,
+    @Param('id', new ParseUuidPipe('categoryId')) id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return this.categoriesService.update(id, updateCategoryDto);
@@ -49,7 +50,7 @@ export class CategoriesController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
+  remove(@Param('id', new ParseUuidPipe('categoryId')) id: string) {
     return this.categoriesService.remove(id);
   }
 }

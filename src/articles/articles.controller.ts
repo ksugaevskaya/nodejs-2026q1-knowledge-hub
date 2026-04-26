@@ -19,6 +19,7 @@ import { ArticleStatus } from '@prisma/client';
 import { Roles } from 'src/auth/roles-decorator';
 import { UserRole } from 'src/users/entities/user.entity';
 import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
+import { ParseUuidPipe } from 'src/common/pipes/parse-uuid.pipe';
 
 @Controller('article')
 export class ArticlesController {
@@ -45,14 +46,14 @@ export class ArticlesController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', new ParseUuidPipe('articleId')) id: string) {
     return this.articlesService.getOne(id);
   }
 
   @Put(':id')
   @Roles(UserRole.ADMIN, UserRole.EDITOR)
   update(
-    @Param('id') id: string,
+    @Param('id', new ParseUuidPipe('id')) id: string,
     @Body() updateArticleDto: UpdateArticleDto,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -62,7 +63,7 @@ export class ArticlesController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
+  remove(@Param('id', new ParseUuidPipe('id')) id: string) {
     return this.articlesService.remove(id);
   }
 }
