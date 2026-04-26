@@ -1,10 +1,7 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { NotFoundError, ValidationError } from '../common/errors';
 import { CategoriesService } from './categories.service';
 
 describe('CategoriesService', () => {
@@ -117,7 +114,7 @@ describe('CategoriesService', () => {
   describe('getOne', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.getOne('bad-id')).rejects.toThrow(
-        new BadRequestException('Invalid categoryId format'),
+        new ValidationError('Invalid categoryId format'),
       );
 
       expect(prismaMock.category.findUnique).not.toHaveBeenCalled();
@@ -145,7 +142,7 @@ describe('CategoriesService', () => {
       prismaMock.category.findUnique.mockResolvedValue(null);
 
       await expect(service.getOne(categoryId)).rejects.toThrow(
-        new NotFoundException('Category not found'),
+        new NotFoundError('Category not found'),
       );
     });
   });
@@ -154,7 +151,7 @@ describe('CategoriesService', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(
         service.update('bad-id', { name: 'Updated' }),
-      ).rejects.toThrow(new BadRequestException('Invalid categoryId format'));
+      ).rejects.toThrow(new ValidationError('Invalid categoryId format'));
 
       expect(prismaMock.category.findUnique).not.toHaveBeenCalled();
     });
@@ -164,7 +161,7 @@ describe('CategoriesService', () => {
 
       await expect(
         service.update(categoryId, { name: 'Updated' }),
-      ).rejects.toThrow(new NotFoundException('Category not found'));
+      ).rejects.toThrow(new NotFoundError('Category not found'));
     });
 
     it('updates only the provided fields', async () => {
@@ -201,7 +198,7 @@ describe('CategoriesService', () => {
   describe('remove', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.remove('bad-id')).rejects.toThrow(
-        new BadRequestException('Invalid categoryId format'),
+        new ValidationError('Invalid categoryId format'),
       );
 
       expect(prismaMock.category.findUnique).not.toHaveBeenCalled();
@@ -211,7 +208,7 @@ describe('CategoriesService', () => {
       prismaMock.category.findUnique.mockResolvedValue(null);
 
       await expect(service.remove(categoryId)).rejects.toThrow(
-        new NotFoundException('Category not found'),
+        new NotFoundError('Category not found'),
       );
     });
 

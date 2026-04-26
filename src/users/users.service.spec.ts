@@ -1,12 +1,12 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthUser } from 'src/auth/auth-user.interface';
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/errors';
 import { UsersService } from './users.service';
 import { UserRole } from './entities/user.entity';
 
@@ -158,7 +158,7 @@ describe('UsersService', () => {
           login: 'taken-user',
           password: 'secret123',
         }),
-      ).rejects.toThrow(new BadRequestException('Login already exists'));
+      ).rejects.toThrow(new ValidationError('Login already exists'));
     });
 
     it('rethrows non-constraint create errors', async () => {
@@ -226,7 +226,7 @@ describe('UsersService', () => {
   describe('getOne', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.getOne('not-a-uuid')).rejects.toThrow(
-        new BadRequestException('Invalid userId format'),
+        new ValidationError('Invalid userId format'),
       );
 
       expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
@@ -265,7 +265,7 @@ describe('UsersService', () => {
       prismaMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.getOne(userId)).rejects.toThrow(
-        new NotFoundException('User not found'),
+        new NotFoundError('User not found'),
       );
     });
   });
@@ -274,7 +274,7 @@ describe('UsersService', () => {
     it('rejects invalid uuids before checking permissions', async () => {
       await expect(
         service.updatePassword('bad-id', {}, adminUser),
-      ).rejects.toThrow(new BadRequestException('Invalid userId format'));
+      ).rejects.toThrow(new ValidationError('Invalid userId format'));
 
       expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
     });
@@ -282,7 +282,7 @@ describe('UsersService', () => {
     it('allows only admins to update users', async () => {
       await expect(
         service.updatePassword(userId, { role: UserRole.VIEWER }, editorUser),
-      ).rejects.toThrow(new ForbiddenException('Access denied'));
+      ).rejects.toThrow(new ForbiddenError('Access denied'));
 
       expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
     });
@@ -295,8 +295,10 @@ describe('UsersService', () => {
         role: UserRole.VIEWER,
       });
 
-      await expect(service.updatePassword(userId, {}, adminUser)).rejects.toThrow(
-        new BadRequestException(
+      await expect(
+        service.updatePassword(userId, {}, adminUser),
+      ).rejects.toThrow(
+        new ValidationError(
           'At least one of oldPassword/newPassword or role is required',
         ),
       );
@@ -307,7 +309,7 @@ describe('UsersService', () => {
 
       await expect(
         service.updatePassword(userId, { role: UserRole.EDITOR }, adminUser),
-      ).rejects.toThrow(new NotFoundException('User not found'));
+      ).rejects.toThrow(new NotFoundError('User not found'));
     });
 
     it('requires both old and new password when changing a password', async () => {
@@ -325,7 +327,7 @@ describe('UsersService', () => {
           adminUser,
         ),
       ).rejects.toThrow(
-        new BadRequestException('Both oldPassword and newPassword are required'),
+        new ValidationError('Both oldPassword and newPassword are required'),
       );
     });
 
@@ -346,7 +348,7 @@ describe('UsersService', () => {
           },
           adminUser,
         ),
-      ).rejects.toThrow(new ForbiddenException('Old password is incorrect'));
+      ).rejects.toThrow(new ForbiddenError('Old password is incorrect'));
     });
 
     it('updates password and role and maps timestamps', async () => {
@@ -402,7 +404,7 @@ describe('UsersService', () => {
   describe('remove', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.remove('bad-id')).rejects.toThrow(
-        new BadRequestException('Invalid userId format'),
+        new ValidationError('Invalid userId format'),
       );
 
       expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
@@ -412,7 +414,7 @@ describe('UsersService', () => {
       prismaMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.remove(userId)).rejects.toThrow(
-        new NotFoundException('User not found'),
+        new NotFoundError('User not found'),
       );
     });
 

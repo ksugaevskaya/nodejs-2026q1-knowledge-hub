@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-user-password.dto';
 import { UserRole } from './entities/user.entity';
@@ -11,6 +6,11 @@ import { validate as isUuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { SortOrder } from '../common/types';
 import { AuthUser } from 'src/auth/auth-user.interface';
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/errors';
 
 @Injectable()
 export class UsersService {
@@ -45,7 +45,7 @@ export class UsersService {
         error instanceof Error &&
         error.message.includes('Unique constraint failed')
       ) {
-        throw new BadRequestException('Login already exists');
+        throw new ValidationError('Login already exists');
       }
       throw error;
     }
@@ -78,7 +78,7 @@ export class UsersService {
 
   async getOne(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid userId format');
+      throw new ValidationError('Invalid userId format');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -93,7 +93,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundError('User not found');
     }
 
     return {
@@ -111,11 +111,11 @@ export class UsersService {
     currentUser: AuthUser,
   ) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid userId format');
+      throw new ValidationError('Invalid userId format');
     }
 
     if (currentUser.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenError('Access denied');
     }
 
     const hasRoleUpdate = updatePasswordDto.role !== undefined;
@@ -128,20 +128,20 @@ export class UsersService {
       updatePasswordDto.newPassword !== undefined;
 
     if (!hasPasswordUpdate && !hasRoleUpdate) {
-      throw new BadRequestException(
+      throw new ValidationError(
         'At least one of oldPassword/newPassword or role is required',
       );
     }
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundError('User not found');
     }
 
     if (
       hasPasswordUpdate &&
       (!updatePasswordDto.oldPassword || !updatePasswordDto.newPassword)
     ) {
-      throw new BadRequestException(
+      throw new ValidationError(
         'Both oldPassword and newPassword are required',
       );
     }
@@ -150,7 +150,7 @@ export class UsersService {
       updatePasswordDto.oldPassword &&
       user.password !== updatePasswordDto.oldPassword
     ) {
-      throw new ForbiddenException('Old password is incorrect');
+      throw new ForbiddenError('Old password is incorrect');
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -181,7 +181,7 @@ export class UsersService {
 
   async remove(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid userId format');
+      throw new ValidationError('Invalid userId format');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -189,7 +189,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundError('User not found');
     }
 
     await this.prisma.$transaction([

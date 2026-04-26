@@ -1,13 +1,10 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { validate as isUuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { SortOrder } from '../common/types';
+import { NotFoundError, ValidationError } from '../common/errors';
 
 @Injectable()
 export class CategoriesService {
@@ -34,7 +31,7 @@ export class CategoriesService {
 
   async getOne(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid categoryId format');
+      throw new ValidationError('Invalid categoryId format');
     }
 
     const category = await this.prisma.category.findUnique({
@@ -42,7 +39,7 @@ export class CategoriesService {
     });
 
     if (!category) {
-      throw new NotFoundException('Category not found');
+      throw new NotFoundError('Category not found');
     }
 
     return category;
@@ -50,7 +47,7 @@ export class CategoriesService {
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid categoryId format');
+      throw new ValidationError('Invalid categoryId format');
     }
 
     const category = await this.prisma.category.findUnique({
@@ -58,7 +55,7 @@ export class CategoriesService {
     });
 
     if (!category) {
-      throw new NotFoundException('Category not found');
+      throw new NotFoundError('Category not found');
     }
 
     return await this.prisma.category.update({
@@ -74,7 +71,7 @@ export class CategoriesService {
 
   async remove(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid categoryId format');
+      throw new ValidationError('Invalid categoryId format');
     }
 
     const category = await this.prisma.category.findUnique({
@@ -82,7 +79,7 @@ export class CategoriesService {
     });
 
     if (!category) {
-      throw new NotFoundException('Category not found');
+      throw new NotFoundError('Category not found');
     }
 
     await this.prisma.category.delete({

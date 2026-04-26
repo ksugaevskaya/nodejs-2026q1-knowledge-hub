@@ -1,14 +1,14 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ForbiddenError,
+  UnauthorizedError,
+  ValidationError,
+} from '../common/errors';
 import { AuthService } from './auth.service';
 import { UserRole } from 'src/users/entities/user.entity';
 
@@ -164,7 +164,7 @@ describe('AuthService', () => {
           login: baseUser.login,
           password: 'plain-password',
         }),
-      ).rejects.toThrow(new BadRequestException('Login is already taken'));
+      ).rejects.toThrow(new ValidationError('Login is already taken'));
 
       expect(bcrypt.hash).not.toHaveBeenCalled();
       expect(prismaMock.user.create).not.toHaveBeenCalled();
@@ -207,7 +207,7 @@ describe('AuthService', () => {
           login: 'missing-user',
           password: 'plain-password',
         }),
-      ).rejects.toThrow(new ForbiddenException('Invalid credentials'));
+      ).rejects.toThrow(new ForbiddenError('Invalid credentials'));
 
       expect(bcrypt.compare).not.toHaveBeenCalled();
     });
@@ -221,14 +221,14 @@ describe('AuthService', () => {
           login: baseUser.login,
           password: 'wrong-password',
         }),
-      ).rejects.toThrow(new ForbiddenException('Invalid credentials'));
+      ).rejects.toThrow(new ForbiddenError('Invalid credentials'));
     });
   });
 
   describe('logout', () => {
     it('requires a refresh token', async () => {
       await expect(service.logout({})).rejects.toThrow(
-        new UnauthorizedException('Refresh token is required'),
+        new UnauthorizedError('Refresh token is required'),
       );
     });
 
@@ -251,16 +251,14 @@ describe('AuthService', () => {
 
       await expect(
         service.logout({ refreshToken: 'bad-token' }),
-      ).rejects.toThrow(
-        new ForbiddenException('Invalid or expired refresh token'),
-      );
+      ).rejects.toThrow(new ForbiddenError('Invalid or expired refresh token'));
     });
   });
 
   describe('refresh', () => {
     it('requires a refresh token', async () => {
       await expect(service.refresh({})).rejects.toThrow(
-        new UnauthorizedException('Refresh token is required'),
+        new UnauthorizedError('Refresh token is required'),
       );
     });
 
@@ -273,7 +271,7 @@ describe('AuthService', () => {
       await service.logout({ refreshToken: token });
 
       await expect(service.refresh({ refreshToken: token })).rejects.toThrow(
-        new ForbiddenException('Invalid or expired refresh token'),
+        new ForbiddenError('Invalid or expired refresh token'),
       );
 
       expect(jwtServiceMock.verifyAsync).toHaveBeenCalledTimes(1);
@@ -315,9 +313,7 @@ describe('AuthService', () => {
 
       await expect(
         service.refresh({ refreshToken: 'deleted-user-token' }),
-      ).rejects.toThrow(
-        new ForbiddenException('Invalid or expired refresh token'),
-      );
+      ).rejects.toThrow(new ForbiddenError('Invalid or expired refresh token'));
     });
 
     it('rejects invalid refresh tokens', async () => {
@@ -325,9 +321,7 @@ describe('AuthService', () => {
 
       await expect(
         service.refresh({ refreshToken: 'bad-token' }),
-      ).rejects.toThrow(
-        new ForbiddenException('Invalid or expired refresh token'),
-      );
+      ).rejects.toThrow(new ForbiddenError('Invalid or expired refresh token'));
     });
   });
 });

@@ -1,13 +1,13 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthUser } from 'src/auth/auth-user.interface';
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/errors';
 import { CommentsService } from './comments.service';
 import { UserRole } from 'src/users/entities/user.entity';
 
@@ -84,9 +84,7 @@ describe('CommentsService', () => {
           },
           editorUser,
         ),
-      ).rejects.toThrow(
-        new UnprocessableEntityException('Article not found'),
-      );
+      ).rejects.toThrow(new UnprocessableEntityException('Article not found'));
 
       expect(prismaMock.comment.create).not.toHaveBeenCalled();
     });
@@ -104,7 +102,7 @@ describe('CommentsService', () => {
           editorUser,
         ),
       ).rejects.toThrow(
-        new ForbiddenException('Editors can create only their own comments'),
+        new ForbiddenError('Editors can create only their own comments'),
       );
 
       expect(prismaMock.comment.create).not.toHaveBeenCalled();
@@ -177,7 +175,7 @@ describe('CommentsService', () => {
   describe('getAll', () => {
     it('requires an article id', async () => {
       await expect(service.getAll('')).rejects.toThrow(
-        new BadRequestException('ArticleId is required'),
+        new ValidationError('ArticleId is required'),
       );
 
       expect(prismaMock.comment.findMany).not.toHaveBeenCalled();
@@ -220,7 +218,7 @@ describe('CommentsService', () => {
   describe('getOne', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.getOne('bad-id')).rejects.toThrow(
-        new BadRequestException('Invalid commentId format'),
+        new ValidationError('Invalid commentId format'),
       );
 
       expect(prismaMock.comment.findUnique).not.toHaveBeenCalled();
@@ -248,7 +246,7 @@ describe('CommentsService', () => {
       prismaMock.comment.findUnique.mockResolvedValue(null);
 
       await expect(service.getOne(commentId)).rejects.toThrow(
-        new NotFoundException('Comment not found'),
+        new NotFoundError('Comment not found'),
       );
     });
   });
@@ -256,7 +254,7 @@ describe('CommentsService', () => {
   describe('remove', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.remove('bad-id', adminUser)).rejects.toThrow(
-        new BadRequestException('Invalid commentId format'),
+        new ValidationError('Invalid commentId format'),
       );
 
       expect(prismaMock.comment.findUnique).not.toHaveBeenCalled();
@@ -266,7 +264,7 @@ describe('CommentsService', () => {
       prismaMock.comment.findUnique.mockResolvedValue(null);
 
       await expect(service.remove(commentId, adminUser)).rejects.toThrow(
-        new NotFoundException('Comment not found'),
+        new NotFoundError('Comment not found'),
       );
     });
 
@@ -277,7 +275,7 @@ describe('CommentsService', () => {
       });
 
       await expect(service.remove(commentId, editorUser)).rejects.toThrow(
-        new ForbiddenException('Editors can delete only their own comments'),
+        new ForbiddenError('Editors can delete only their own comments'),
       );
 
       expect(prismaMock.comment.delete).not.toHaveBeenCalled();
@@ -290,7 +288,9 @@ describe('CommentsService', () => {
       });
       prismaMock.comment.delete.mockResolvedValue(undefined);
 
-      await expect(service.remove(commentId, editorUser)).resolves.toBeUndefined();
+      await expect(
+        service.remove(commentId, editorUser),
+      ).resolves.toBeUndefined();
 
       expect(prismaMock.comment.delete).toHaveBeenCalledWith({
         where: { id: commentId },
@@ -304,7 +304,9 @@ describe('CommentsService', () => {
       });
       prismaMock.comment.delete.mockResolvedValue(undefined);
 
-      await expect(service.remove(commentId, adminUser)).resolves.toBeUndefined();
+      await expect(
+        service.remove(commentId, adminUser),
+      ).resolves.toBeUndefined();
 
       expect(prismaMock.comment.delete).toHaveBeenCalledWith({
         where: { id: commentId },

@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { validate as isUuid } from 'uuid';
 
@@ -12,6 +6,11 @@ import { SortOrder } from '../common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthUser } from 'src/auth/auth-user.interface';
 import { UserRole } from 'src/users/entities/user.entity';
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/errors';
 
 @Injectable()
 export class CommentsService {
@@ -53,9 +52,7 @@ export class CommentsService {
       createCommentDto.authorId &&
       createCommentDto.authorId !== currentUser.userId
     ) {
-      throw new ForbiddenException(
-        'Editors can create only their own comments',
-      );
+      throw new ForbiddenError('Editors can create only their own comments');
     }
 
     const createdComment = await this.prisma.comment.create({
@@ -77,7 +74,7 @@ export class CommentsService {
       : undefined;
 
     if (!articleId) {
-      throw new BadRequestException('ArticleId is required');
+      throw new ValidationError('ArticleId is required');
     }
 
     const comments = await this.prisma.comment.findMany({
@@ -92,7 +89,7 @@ export class CommentsService {
 
   async getOne(id: string) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid commentId format');
+      throw new ValidationError('Invalid commentId format');
     }
 
     const comment = await this.prisma.comment.findUnique({
@@ -102,7 +99,7 @@ export class CommentsService {
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundError('Comment not found');
     }
 
     return this.mapComment(comment);
@@ -110,7 +107,7 @@ export class CommentsService {
 
   async remove(id: string, currentUser: AuthUser) {
     if (!isUuid(id)) {
-      throw new BadRequestException('Invalid commentId format');
+      throw new ValidationError('Invalid commentId format');
     }
 
     const comment = await this.prisma.comment.findUnique({
@@ -118,16 +115,14 @@ export class CommentsService {
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundError('Comment not found');
     }
 
     if (
       currentUser.role !== UserRole.ADMIN &&
       comment.authorId !== currentUser.userId
     ) {
-      throw new ForbiddenException(
-        'Editors can delete only their own comments',
-      );
+      throw new ForbiddenError('Editors can delete only their own comments');
     }
 
     await this.prisma.comment.delete({

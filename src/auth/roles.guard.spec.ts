@@ -1,10 +1,7 @@
-import {
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ForbiddenError, UnauthorizedError } from '../common/errors';
 import { UserRole } from 'src/users/entities/user.entity';
 import { RolesGuard } from './roles.guard';
 
@@ -63,7 +60,7 @@ describe('RolesGuard', () => {
     reflectorMock.getAllAndOverride.mockReturnValue([UserRole.ADMIN]);
 
     expect(() => guard.canActivate(createContext() as never)).toThrow(
-      UnauthorizedException,
+      UnauthorizedError,
     );
   });
 
@@ -72,7 +69,7 @@ describe('RolesGuard', () => {
 
     expect(() =>
       guard.canActivate(createContext({ role: UserRole.EDITOR }) as never),
-    ).toThrow(new ForbiddenException('Access denied'));
+    ).toThrow(new ForbiddenError('Access denied'));
   });
 
   it('allows users whose role matches the required metadata', () => {

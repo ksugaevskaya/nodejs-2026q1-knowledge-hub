@@ -1,13 +1,13 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ArticleStatus } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthUser } from 'src/auth/auth-user.interface';
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/errors';
 import { ArticlesService } from './articles.service';
 import { UserRole } from 'src/users/entities/user.entity';
 
@@ -95,7 +95,7 @@ describe('ArticlesService', () => {
           editorUser,
         ),
       ).rejects.toThrow(
-        new ForbiddenException('Editors can create only their own articles'),
+        new ForbiddenError('Editors can create only their own articles'),
       );
 
       expect(prismaMock.article.create).not.toHaveBeenCalled();
@@ -274,7 +274,7 @@ describe('ArticlesService', () => {
   describe('getOne', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.getOne('bad-id')).rejects.toThrow(
-        new BadRequestException('Invalid articleId format'),
+        new ValidationError('Invalid articleId format'),
       );
 
       expect(prismaMock.article.findUnique).not.toHaveBeenCalled();
@@ -311,7 +311,7 @@ describe('ArticlesService', () => {
       prismaMock.article.findUnique.mockResolvedValue(null);
 
       await expect(service.getOne(articleId)).rejects.toThrow(
-        new NotFoundException('Article not found'),
+        new NotFoundError('Article not found'),
       );
     });
   });
@@ -320,7 +320,7 @@ describe('ArticlesService', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(
         service.update('bad-id', { title: 'Updated' }, adminUser),
-      ).rejects.toThrow(new BadRequestException('Invalid id format'));
+      ).rejects.toThrow(new ValidationError('Invalid id format'));
 
       expect(prismaMock.article.findUnique).not.toHaveBeenCalled();
     });
@@ -330,7 +330,7 @@ describe('ArticlesService', () => {
 
       await expect(
         service.update(articleId, { title: 'Updated' }, adminUser),
-      ).rejects.toThrow(new NotFoundException('Article not found'));
+      ).rejects.toThrow(new NotFoundError('Article not found'));
     });
 
     it('prevents editors from updating another author’s article', async () => {
@@ -342,7 +342,7 @@ describe('ArticlesService', () => {
       await expect(
         service.update(articleId, { title: 'Updated' }, editorUser),
       ).rejects.toThrow(
-        new ForbiddenException('Editors can update only their own articles'),
+        new ForbiddenError('Editors can update only their own articles'),
       );
     });
 
@@ -353,13 +353,9 @@ describe('ArticlesService', () => {
       });
 
       await expect(
-        service.update(
-          articleId,
-          { authorId: otherAuthorId },
-          editorUser,
-        ),
+        service.update(articleId, { authorId: otherAuthorId }, editorUser),
       ).rejects.toThrow(
-        new ForbiddenException('Editors cannot reassign article ownership'),
+        new ForbiddenError('Editors cannot reassign article ownership'),
       );
     });
 
@@ -460,7 +456,7 @@ describe('ArticlesService', () => {
   describe('remove', () => {
     it('rejects invalid uuids before querying prisma', async () => {
       await expect(service.remove('bad-id')).rejects.toThrow(
-        new BadRequestException('Invalid id format'),
+        new ValidationError('Invalid id format'),
       );
 
       expect(prismaMock.article.findUnique).not.toHaveBeenCalled();
@@ -470,7 +466,7 @@ describe('ArticlesService', () => {
       prismaMock.article.findUnique.mockResolvedValue(null);
 
       await expect(service.remove(articleId)).rejects.toThrow(
-        new NotFoundException('Article not found'),
+        new NotFoundError('Article not found'),
       );
     });
 

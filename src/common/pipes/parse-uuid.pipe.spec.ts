@@ -1,5 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
+import { ValidationError } from '../errors';
 import { ParseUuidPipe } from './parse-uuid.pipe';
 
 describe('ParseUuidPipe', () => {
@@ -14,7 +14,7 @@ describe('ParseUuidPipe', () => {
     const pipe = new ParseUuidPipe();
 
     expect(() => pipe.transform('bad-id')).toThrow(
-      new BadRequestException('Invalid id format'),
+      new ValidationError('Invalid id format'),
     );
   });
 
@@ -22,7 +22,7 @@ describe('ParseUuidPipe', () => {
     const pipe = new ParseUuidPipe('userId');
 
     expect(() => pipe.transform('bad-id')).toThrow(
-      new BadRequestException('Invalid userId format'),
+      new ValidationError('Invalid userId format'),
     );
   });
 });

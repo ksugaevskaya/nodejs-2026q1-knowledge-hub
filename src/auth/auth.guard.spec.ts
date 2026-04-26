@@ -1,8 +1,8 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { UnauthorizedError } from '../common/errors';
 import { AuthGuard } from './auth.guard';
 
 describe('AuthGuard', () => {
@@ -82,7 +82,7 @@ describe('AuthGuard', () => {
     const { context } = createContext();
 
     await expect(guard.canActivate(context as never)).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedError,
     );
 
     expect(jwtServiceMock.verifyAsync).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe('AuthGuard', () => {
     const { context } = createContext('Basic abc123');
 
     await expect(guard.canActivate(context as never)).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedError,
     );
   });
 
@@ -124,7 +124,7 @@ describe('AuthGuard', () => {
     const { context } = createContext('Bearer token-value');
 
     await expect(guard.canActivate(context as never)).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedError,
     );
   });
 });
