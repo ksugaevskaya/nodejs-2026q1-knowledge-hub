@@ -26,7 +26,7 @@ async function bootstrap() {
     new RequestLoggingInterceptor(logger),
     new SanitizeUserResponseInterceptor(),
   );
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(logger));
 
   const config = new DocumentBuilder()
     .setTitle('Knowledge Hub')
