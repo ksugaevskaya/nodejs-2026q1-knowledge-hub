@@ -3,6 +3,7 @@ import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { GeminiService } from './gemini.service';
 import { AiCacheService } from './internal/ai-cache.service';
+import { AiContextService } from './internal/ai-context.service';
 import { AiRateLimitService } from './internal/ai-rate-limit.service';
 import { AiUsageTrackerService } from './internal/ai-usage-tracker.service';
 import { ArticlesModule } from 'src/articles/articles.module';
@@ -14,6 +15,7 @@ import { ArticlesModule } from 'src/articles/articles.module';
     AiService,
     GeminiService,
     AiCacheService,
+    AiContextService,
     AiRateLimitService,
     AiUsageTrackerService,
   ],
