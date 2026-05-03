@@ -11,6 +11,7 @@ import { TranslateArticleDto } from './dto/translate-article.dto';
 import { GenerateDto } from './dto/generate.dto';
 import { GeminiService } from './gemini.service';
 import { AiCacheService } from './internal/ai-cache.service';
+import { AiContextService } from './internal/ai-context.service';
 import { AiRateLimitService } from './internal/ai-rate-limit.service';
 import { AiUsageTrackerService } from './internal/ai-usage-tracker.service';
 import { ArticlesService } from 'src/articles/articles.service';
@@ -32,6 +33,7 @@ export class AiService {
     private readonly articlesService: ArticlesService,
     private readonly geminiService: GeminiService,
     private readonly cacheService: AiCacheService,
+    private readonly contextService: AiContextService,
     private readonly rateLimitService: AiRateLimitService,
     private readonly usageTracker: AiUsageTrackerService,
   ) {}
@@ -117,16 +119,29 @@ export class AiService {
   }
 
   async generate(dto: GenerateDto) {
+    const normalizedPrompt = dto.prompt.trim();
+    const contextTurns = dto.sessionId
+      ? this.contextService.getRecentContext(dto.sessionId)
+      : [];
     const prompt = buildGenericGeneratePrompt({
-      prompt: dto.prompt.trim(),
+      prompt: normalizedPrompt,
       sessionId: dto.sessionId,
+      contextTurns,
     });
     const result = await this.geminiService.generateText(prompt, {
       endpointName: 'generate',
     });
+    const text = result.text.trim();
+
+    if (dto.sessionId) {
+      this.contextService.appendTurn(dto.sessionId, {
+        prompt: normalizedPrompt,
+        response: text,
+      });
+    }
 
     return {
-      text: result.text.trim(),
+      text,
       sessionId: dto.sessionId ?? null,
     };
   }
