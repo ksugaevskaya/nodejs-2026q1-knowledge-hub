@@ -14,7 +14,10 @@ import { AiCacheService } from './internal/ai-cache.service';
 import { AiRateLimitService } from './internal/ai-rate-limit.service';
 import { AiUsageTrackerService } from './internal/ai-usage-tracker.service';
 import { ArticlesService } from 'src/articles/articles.service';
-import { AnalysisSeverity } from './ai.types';
+import {
+  validateAnalyzeResponse,
+  validateTranslateResponse,
+} from './response-validators';
 
 type ArticleRecord = {
   id: string;
@@ -79,17 +82,12 @@ export class AiService {
       translatedText?: string;
       detectedLanguage?: string;
     }>(result.text, 'translation');
+    const validated = validateTranslateResponse(parsed);
 
     return {
       articleId: article.id,
-      translatedText: this.requireString(
-        parsed.translatedText,
-        'AI translation response is invalid',
-      ),
-      detectedLanguage: this.requireString(
-        parsed.detectedLanguage,
-        'AI translation response is invalid',
-      ),
+      translatedText: validated.translatedText,
+      detectedLanguage: validated.detectedLanguage,
     };
   }
 
@@ -108,15 +106,13 @@ export class AiService {
       suggestions?: unknown;
       severity?: string;
     }>(result.text, 'analysis');
+    const validated = validateAnalyzeResponse(parsed);
 
     return {
       articleId: article.id,
-      analysis: this.requireString(
-        parsed.analysis,
-        'AI analysis response is invalid',
-      ),
-      suggestions: this.normalizeSuggestions(parsed.suggestions),
-      severity: this.normalizeSeverity(parsed.severity),
+      analysis: validated.analysis,
+      suggestions: validated.suggestions,
+      severity: validated.severity,
     };
   }
 
@@ -185,32 +181,5 @@ export class AiService {
     }
 
     return value;
-  }
-
-  private requireString(value: string | undefined, message: string): string {
-    if (!value || !value.trim()) {
-      throw new ServiceUnavailableException(message);
-    }
-
-    return value.trim();
-  }
-
-  private normalizeSuggestions(value: unknown): string[] {
-    if (!Array.isArray(value)) {
-      throw new ServiceUnavailableException('AI analysis response is invalid');
-    }
-
-    return value
-      .filter((item): item is string => typeof item === 'string')
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  private normalizeSeverity(value: string | undefined): AnalysisSeverity {
-    if (value === 'info' || value === 'warning' || value === 'error') {
-      return value;
-    }
-
-    throw new ServiceUnavailableException('AI analysis response is invalid');
   }
 }
