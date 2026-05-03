@@ -49,7 +49,7 @@ DATABASE_URL_DOCKER="postgresql://user:password@db:5432/knowledge_hub"
 
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-flash-latest
 AI_RATE_LIMIT_RPM=20
 AI_CACHE_TTL_SEC=300
 ```
@@ -60,7 +60,7 @@ Paste your Gemini key into `GEMINI_API_KEY` in the local `.env` file.
 
 ## Gemini API Setup
 
-The AI integration uses the `gemini-2.0-flash` model through the Google Gemini HTTP API.
+The AI integration uses the `gemini-flash-latest` model through the Google Gemini HTTP API.
 
 ### How to obtain a Gemini API key
 
