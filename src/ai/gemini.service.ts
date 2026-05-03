@@ -22,6 +22,8 @@ export class GeminiService {
     process.env.GEMINI_API_BASE_URL ??
     'https://generativelanguage.googleapis.com';
   private readonly model = process.env.GEMINI_MODEL ?? 'gemini-flash-latest';
+  private readonly requestTimeoutMs = 10_000;
+  private readonly maxRateLimitRetries = 3;
 
   constructor(
     private readonly cacheService: AiCacheService,
@@ -39,6 +41,7 @@ export class GeminiService {
     if (cached) {
       this.usageTracker.recordRequest(options.endpointName, cached.usage, {
         cacheHit: true,
+        latencyMs: 0,
       });
       return {
         ...cached,
@@ -46,9 +49,28 @@ export class GeminiService {
       };
     }
 
-    const result = await this.callGemini(prompt);
+    const startedAt = Date.now();
+    let result: GeminiGenerateTextResult;
+    let retryCount = 0;
+
+    try {
+      const geminiResult = await this.callGemini(prompt);
+      result = geminiResult.result;
+      retryCount = geminiResult.retryCount;
+    } catch (error) {
+      this.usageTracker.recordRequest(options.endpointName, undefined, {
+        cacheHit: Boolean(options.cacheKey) ? false : undefined,
+        retryCount,
+        upstreamFailure: true,
+        latencyMs: Date.now() - startedAt,
+      });
+      throw error;
+    }
+
     this.usageTracker.recordRequest(options.endpointName, result.usage, {
       cacheHit: Boolean(options.cacheKey) ? false : undefined,
+      retryCount,
+      latencyMs: Date.now() - startedAt,
     });
 
     if (options.cacheKey) {
@@ -61,91 +83,130 @@ export class GeminiService {
     };
   }
 
-  private async callGemini(prompt: string): Promise<GeminiGenerateTextResult> {
+  private async callGemini(
+    prompt: string,
+  ): Promise<{ result: GeminiGenerateTextResult; retryCount: number }> {
     if (!this.apiKey) {
       throw new InternalServerErrorException('AI service is not configured');
     }
 
-    let response: Response;
+    let retryCount = 0;
 
-    try {
-      response = await fetch(
-        `${this.baseUrl}/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt,
-                  },
-                ],
-              },
-            ],
-          }),
-        },
+    for (let attempt = 0; attempt <= this.maxRateLimitRetries; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        this.requestTimeoutMs,
       );
-    } catch (error) {
-      this.logger.error(
-        {
-          event: 'gemini_request_failed',
+
+      let response: Response;
+
+      try {
+        response = await fetch(
+          `${this.baseUrl}/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: prompt,
+                    },
+                  ],
+                },
+              ],
+            }),
+            signal: controller.signal,
+          },
+        );
+      } catch (error) {
+        clearTimeout(timeout);
+
+        if (error instanceof Error && error.name === 'AbortError') {
+          this.logger.error({
+            event: 'gemini_request_timeout',
+            baseUrl: this.baseUrl,
+            model: this.model,
+            timeoutMs: this.requestTimeoutMs,
+          });
+          throw new ServiceUnavailableException('AI request timed out');
+        }
+
+        this.logger.error(
+          {
+            event: 'gemini_request_failed',
+            baseUrl: this.baseUrl,
+            model: this.model,
+            message:
+              error instanceof Error ? error.message : 'Unknown fetch error',
+          },
+          error instanceof Error ? error.stack : undefined,
+        );
+        throw new ServiceUnavailableException('AI network request failed');
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        const bodyExcerpt = responseText.slice(0, 500);
+
+        this.logger.warn({
+          event: 'gemini_upstream_error',
           baseUrl: this.baseUrl,
           model: this.model,
-          message:
-            error instanceof Error ? error.message : 'Unknown fetch error',
-        },
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new ServiceUnavailableException('AI network request failed');
-    }
+          statusCode: response.status,
+          bodyExcerpt,
+          attempt: attempt + 1,
+        });
 
-    if (!response.ok) {
-      const responseText = await response.text();
-      const bodyExcerpt = responseText.slice(0, 500);
+        if (response.status === 401 || response.status === 403) {
+          throw new InternalServerErrorException(
+            'AI service authentication failed',
+          );
+        }
 
-      this.logger.warn({
-        event: 'gemini_upstream_error',
-        baseUrl: this.baseUrl,
-        model: this.model,
-        statusCode: response.status,
-        bodyExcerpt,
-      });
+        if (response.status === 429) {
+          if (attempt < this.maxRateLimitRetries) {
+            retryCount += 1;
+            await this.sleep(this.getBackoffDelayMs(attempt));
+            continue;
+          }
 
-      if (response.status === 401 || response.status === 403) {
-        throw new InternalServerErrorException(
-          'AI service authentication failed',
-        );
-      }
+          throw new ServiceUnavailableException(
+            'AI upstream rate limit exceeded',
+          );
+        }
 
-      if (response.status === 429) {
         throw new ServiceUnavailableException(
-          'AI upstream rate limit exceeded',
+          `AI upstream request failed with status ${response.status}`,
         );
       }
 
-      throw new ServiceUnavailableException(
-        `AI upstream request failed with status ${response.status}`,
-      );
+      const data = (await response.json()) as GeminiGenerateContentResponse;
+      const text = this.extractText(data);
+
+      if (!text) {
+        throw new ServiceUnavailableException(
+          'AI service returned an empty response',
+        );
+      }
+
+      return {
+        result: {
+          text,
+          usage: this.extractUsage(data),
+          cached: false,
+        },
+        retryCount,
+      };
     }
 
-    const data = (await response.json()) as GeminiGenerateContentResponse;
-    const text = this.extractText(data);
-
-    if (!text) {
-      throw new ServiceUnavailableException(
-        'AI service returned an empty response',
-      );
-    }
-
-    return {
-      text,
-      usage: this.extractUsage(data),
-      cached: false,
-    };
+    throw new ServiceUnavailableException('AI upstream rate limit exceeded');
   }
 
   private extractText(response: GeminiGenerateContentResponse): string {
@@ -170,6 +231,14 @@ export class GeminiService {
       candidatesTokens: response.usageMetadata.candidatesTokenCount,
       totalTokens: response.usageMetadata.totalTokenCount,
     };
+  }
+
+  private getBackoffDelayMs(attempt: number): number {
+    return 500 * 2 ** attempt;
+  }
+
+  private async sleep(delayMs: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 }
 
