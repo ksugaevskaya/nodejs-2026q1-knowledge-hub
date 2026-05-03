@@ -4,6 +4,7 @@ import {
   buildSummarizeArticlePrompt,
   buildTranslateArticlePrompt,
 } from './prompts/article-prompts';
+import { buildGenericGeneratePrompt } from './prompts/generic-prompts';
 import { AnalyzeArticleDto } from './dto/analyze-article.dto';
 import { SummarizeArticleDto } from './dto/summarize-article.dto';
 import { TranslateArticleDto } from './dto/translate-article.dto';
@@ -120,7 +121,11 @@ export class AiService {
   }
 
   async generate(dto: GenerateDto) {
-    const result = await this.geminiService.generateText(dto.prompt.trim(), {
+    const prompt = buildGenericGeneratePrompt({
+      prompt: dto.prompt.trim(),
+      sessionId: dto.sessionId,
+    });
+    const result = await this.geminiService.generateText(prompt, {
       endpointName: 'generate',
     });
 
