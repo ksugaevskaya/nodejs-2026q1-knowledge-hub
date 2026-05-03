@@ -55,7 +55,7 @@ export function buildTranslateArticlePrompt(
     input.sourceLanguage
       ? `The source language is ${input.sourceLanguage}.`
       : 'Detect the source language before translating.',
-    'Return only the translated text.',
+    'Return a JSON object with keys: translatedText, detectedLanguage.',
     `Title: ${input.title}`,
     'Content:',
     input.content,
