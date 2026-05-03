@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpException,
   HttpStatus,
@@ -16,10 +17,17 @@ import { AnalyzeArticleDto } from './dto/analyze-article.dto';
 import { ParseUuidPipe } from 'src/common/pipes/parse-uuid.pipe';
 import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
 import { Response } from 'express';
+import { GenerateDto } from './dto/generate.dto';
 
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
+
+  @Get('usage')
+  @HttpCode(HttpStatus.OK)
+  getUsage() {
+    return this.aiService.getUsage();
+  }
 
   @Post('articles/:articleId/summarize')
   @HttpCode(HttpStatus.OK)
@@ -55,6 +63,17 @@ export class AiController {
   ) {
     this.enforceRateLimit('analyzeArticle', request, response);
     return this.aiService.analyzeArticle(articleId, dto);
+  }
+
+  @Post('generate')
+  @HttpCode(HttpStatus.OK)
+  generate(
+    @Body() dto: GenerateDto,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    this.enforceRateLimit('generate', request, response);
+    return this.aiService.generate(dto);
   }
 
   private enforceRateLimit(
