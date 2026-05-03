@@ -32,6 +32,12 @@ PORT=4000
 LOG_LEVEL=log
 LOG_MAX_FILE_SIZE=1024
 
+CRYPT_SALT=10
+JWT_SECRET_KEY=secret123123
+JWT_SECRET_REFRESH_KEY=secret123123
+TOKEN_EXPIRE_TIME=1h
+TOKEN_REFRESH_EXPIRE_TIME=24h
+
 POSTGRES_USER=user
 POSTGRES_PASSWORD=password
 POSTGRES_DB=knowledge_hub
@@ -40,10 +46,30 @@ POSTGRES_PORT=5432
 
 DATABASE_URL="postgresql://user:password@localhost:5432/knowledge_hub"
 DATABASE_URL_DOCKER="postgresql://user:password@db:5432/knowledge_hub"
+
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com
+GEMINI_MODEL=gemini-2.0-flash
+AI_RATE_LIMIT_RPM=20
+AI_CACHE_TTL_SEC=300
 ```
 
 The `.env.example` file with default values is already provided.
 `LOG_LEVEL` controls the minimum log verbosity (`error`, `warn`, `log`, `debug`, `verbose`), and `LOG_MAX_FILE_SIZE` sets the log rotation threshold in kilobytes.
+Paste your Gemini key into `GEMINI_API_KEY` in the local `.env` file.
+
+## Gemini API Setup
+
+The AI integration uses the `gemini-2.0-flash` model through the Google Gemini HTTP API.
+
+### How to obtain a Gemini API key
+
+1. Open [Google AI Studio](https://aistudio.google.com/).
+2. Sign in with your Google account.
+3. Open the API key management page in AI Studio.
+4. Create a new API key.
+5. Copy the generated key.
+6. Paste the key into `GEMINI_API_KEY` inside `.env`.
 
 ## Running the Application
 
@@ -113,6 +139,37 @@ npm run start:prod
 
 The application will start on the port specified in `.env` (default: 4000).
 
+## Testing AI Endpoints
+
+After the app is running and the Gemini key is configured, create or find an existing article ID and call the AI endpoints.
+
+Example summarize request:
+
+```bash
+curl -X POST http://localhost:4000/ai/articles/<article-id>/summarize \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"maxLength":"medium"}'
+```
+
+Example translate request:
+
+```bash
+curl -X POST http://localhost:4000/ai/articles/<article-id>/translate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"targetLanguage":"Spanish"}'
+```
+
+Example analyze request:
+
+```bash
+curl -X POST http://localhost:4000/ai/articles/<article-id>/analyze \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"task":"review"}'
+```
+
 ## API Documentation
 
 Once the application is running, you can access the OpenAPI/Swagger documentation at:
@@ -156,6 +213,20 @@ The API provides endpoints for managing the following resources:
 - GET `/comment?articleId={articleId}` - Get comments for an article
 - POST `/comment` - Create a new comment
 - DELETE `/comment/:id` - Delete comment
+
+### AI (`/ai`)
+
+- POST `/ai/articles/:articleId/summarize` - Generate a summary for an existing article
+- POST `/ai/articles/:articleId/translate` - Translate article content
+- POST `/ai/articles/:articleId/analyze` - Analyze article content and return suggestions
+
+## Known Limitations
+
+- Gemini free-tier quotas are limited and may cause upstream throttling during repeated tests.
+- AI output is non-deterministic, so repeated requests can return different phrasing.
+- AI endpoints are slower than standard CRUD operations because they depend on an external LLM API.
+- Gemini availability can depend on Google account access and regional support.
+- The current AI flow works only with article content that already exists in the Knowledge Hub database.
 
 ## Testing
 
