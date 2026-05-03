@@ -27,3 +27,8 @@ export type CachedAiResponse<T> = {
   value: T;
   expiresAt: number;
 };
+
+export type AiContextTurn = {
+  prompt: string;
+  response: string;
+};
