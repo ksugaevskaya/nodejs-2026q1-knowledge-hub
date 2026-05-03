@@ -7,6 +7,7 @@ import {
 import { AnalyzeArticleDto } from './dto/analyze-article.dto';
 import { SummarizeArticleDto } from './dto/summarize-article.dto';
 import { TranslateArticleDto } from './dto/translate-article.dto';
+import { GenerateDto } from './dto/generate.dto';
 import { GeminiService } from './gemini.service';
 import { AiCacheService } from './internal/ai-cache.service';
 import { AiRateLimitService } from './internal/ai-rate-limit.service';
@@ -118,7 +119,18 @@ export class AiService {
     };
   }
 
-  getUsageSnapshot() {
+  async generate(dto: GenerateDto) {
+    const result = await this.geminiService.generateText(dto.prompt.trim(), {
+      endpointName: 'generate',
+    });
+
+    return {
+      text: result.text.trim(),
+      sessionId: dto.sessionId ?? null,
+    };
+  }
+
+  getUsage() {
     return this.usageTracker.snapshot();
   }
 
