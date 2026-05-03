@@ -37,7 +37,9 @@ export class GeminiService {
       : undefined;
 
     if (cached) {
-      this.usageTracker.recordRequest(options.endpointName, cached.usage);
+      this.usageTracker.recordRequest(options.endpointName, cached.usage, {
+        cacheHit: true,
+      });
       return {
         ...cached,
         cached: true,
@@ -45,7 +47,9 @@ export class GeminiService {
     }
 
     const result = await this.callGemini(prompt);
-    this.usageTracker.recordRequest(options.endpointName, result.usage);
+    this.usageTracker.recordRequest(options.endpointName, result.usage, {
+      cacheHit: Boolean(options.cacheKey) ? false : undefined,
+    });
 
     if (options.cacheKey) {
       this.cacheService.set(options.cacheKey, result);
