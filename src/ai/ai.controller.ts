@@ -9,7 +9,6 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { SummarizeArticleDto } from './dto/summarize-article.dto';
 import { TranslateArticleDto } from './dto/translate-article.dto';
@@ -18,7 +17,6 @@ import { ParseUuidPipe } from 'src/common/pipes/parse-uuid.pipe';
 import { AuthenticatedRequest } from 'src/auth/auth-user.interface';
 import { Response } from 'express';
 
-@ApiTags('ai')
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
