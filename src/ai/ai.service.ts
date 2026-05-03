@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import {
   buildAnalyzeArticlePrompt,
   buildSummarizeArticlePrompt,
@@ -11,9 +11,11 @@ import { GeminiService } from './gemini.service';
 import { AiCacheService } from './internal/ai-cache.service';
 import { AiRateLimitService } from './internal/ai-rate-limit.service';
 import { AiUsageTrackerService } from './internal/ai-usage-tracker.service';
+import { ArticlesService } from 'src/articles/articles.service';
+import { AnalysisSeverity } from './ai.types';
 
-type ArticlePromptPayload = {
-  articleId: string;
+type ArticleRecord = {
+  id: string;
   title: string;
   content: string;
   updatedAt: number | Date;
@@ -22,35 +24,39 @@ type ArticlePromptPayload = {
 @Injectable()
 export class AiService {
   constructor(
+    private readonly articlesService: ArticlesService,
     private readonly geminiService: GeminiService,
     private readonly cacheService: AiCacheService,
     private readonly rateLimitService: AiRateLimitService,
     private readonly usageTracker: AiUsageTrackerService,
   ) {}
 
-  async summarizeArticle(
-    article: ArticlePromptPayload,
-    dto: SummarizeArticleDto,
-  ) {
+  async summarizeArticle(articleId: string, dto: SummarizeArticleDto) {
+    const article = await this.getArticle(articleId);
     const maxLength = dto.maxLength ?? 'medium';
     const prompt = buildSummarizeArticlePrompt(article, maxLength);
     const cacheKey = this.cacheService.createKey([
       'summarize',
-      article.articleId,
+      article.id,
       maxLength,
       this.normalizeUpdatedAt(article.updatedAt),
     ]);
-
-    return this.geminiService.generateText(prompt, {
+    const result = await this.geminiService.generateText(prompt, {
       endpointName: 'summarizeArticle',
       cacheKey,
     });
+    const summary = result.text.trim();
+
+    return {
+      articleId: article.id,
+      summary,
+      originalLength: article.content.length,
+      summaryLength: summary.length,
+    };
   }
 
-  async translateArticle(
-    article: ArticlePromptPayload,
-    dto: TranslateArticleDto,
-  ) {
+  async translateArticle(articleId: string, dto: TranslateArticleDto) {
+    const article = await this.getArticle(articleId);
     const prompt = buildTranslateArticlePrompt({
       ...article,
       sourceLanguage: dto.sourceLanguage,
@@ -58,28 +64,58 @@ export class AiService {
     });
     const cacheKey = this.cacheService.createKey([
       'translate',
-      article.articleId,
+      article.id,
       dto.targetLanguage,
       dto.sourceLanguage ?? null,
       this.normalizeUpdatedAt(article.updatedAt),
     ]);
-
-    return this.geminiService.generateText(prompt, {
+    const result = await this.geminiService.generateText(prompt, {
       endpointName: 'translateArticle',
       cacheKey,
     });
+    const parsed = this.parseJsonResponse<{
+      translatedText?: string;
+      detectedLanguage?: string;
+    }>(result.text, 'translation');
+
+    return {
+      articleId: article.id,
+      translatedText: this.requireString(
+        parsed.translatedText,
+        'AI translation response is invalid',
+      ),
+      detectedLanguage: this.requireString(
+        parsed.detectedLanguage,
+        'AI translation response is invalid',
+      ),
+    };
   }
 
-  async analyzeArticle(article: ArticlePromptPayload, dto: AnalyzeArticleDto) {
+  async analyzeArticle(articleId: string, dto: AnalyzeArticleDto) {
+    const article = await this.getArticle(articleId);
     const task = dto.task ?? 'review';
     const prompt = buildAnalyzeArticlePrompt({
       ...article,
       task,
     });
-
-    return this.geminiService.generateText(prompt, {
+    const result = await this.geminiService.generateText(prompt, {
       endpointName: 'analyzeArticle',
     });
+    const parsed = this.parseJsonResponse<{
+      analysis?: string;
+      suggestions?: unknown;
+      severity?: string;
+    }>(result.text, 'analysis');
+
+    return {
+      articleId: article.id,
+      analysis: this.requireString(
+        parsed.analysis,
+        'AI analysis response is invalid',
+      ),
+      suggestions: this.normalizeSuggestions(parsed.suggestions),
+      severity: this.normalizeSeverity(parsed.severity),
+    };
   }
 
   getUsageSnapshot() {
@@ -90,7 +126,74 @@ export class AiService {
     return this.rateLimitService.check(key);
   }
 
+  private async getArticle(articleId: string): Promise<ArticleRecord> {
+    const article = await this.articlesService.getOne(articleId);
+
+    return {
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      updatedAt: article.updatedAt,
+    };
+  }
+
   private normalizeUpdatedAt(updatedAt: number | Date): number {
     return updatedAt instanceof Date ? updatedAt.getTime() : updatedAt;
+  }
+
+  private parseJsonResponse<T>(value: string, context: string): T {
+    const jsonCandidate = this.extractJsonObject(value.trim());
+
+    try {
+      return JSON.parse(jsonCandidate) as T;
+    } catch {
+      throw new ServiceUnavailableException(
+        `AI ${context} response could not be parsed`,
+      );
+    }
+  }
+
+  private extractJsonObject(value: string): string {
+    const fencedMatch = value.match(/```json\s*([\s\S]*?)```/i);
+
+    if (fencedMatch) {
+      return fencedMatch[1].trim();
+    }
+
+    const start = value.indexOf('{');
+    const end = value.lastIndexOf('}');
+
+    if (start !== -1 && end !== -1 && end > start) {
+      return value.slice(start, end + 1);
+    }
+
+    return value;
+  }
+
+  private requireString(value: string | undefined, message: string): string {
+    if (!value || !value.trim()) {
+      throw new ServiceUnavailableException(message);
+    }
+
+    return value.trim();
+  }
+
+  private normalizeSuggestions(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      throw new ServiceUnavailableException('AI analysis response is invalid');
+    }
+
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private normalizeSeverity(value: string | undefined): AnalysisSeverity {
+    if (value === 'info' || value === 'warning' || value === 'error') {
+      return value;
+    }
+
+    throw new ServiceUnavailableException('AI analysis response is invalid');
   }
 }
