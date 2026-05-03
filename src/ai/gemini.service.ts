@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { GeminiGenerateTextOptions, GeminiUsageMetadata } from './ai.types';
@@ -15,11 +16,12 @@ type GeminiGenerateTextResult = {
 
 @Injectable()
 export class GeminiService {
+  private readonly logger = new Logger(GeminiService.name);
   private readonly apiKey = process.env.GEMINI_API_KEY;
   private readonly baseUrl =
     process.env.GEMINI_API_BASE_URL ??
     'https://generativelanguage.googleapis.com';
-  private readonly model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+  private readonly model = process.env.GEMINI_MODEL ?? 'gemini-flash-latest';
 
   constructor(
     private readonly cacheService: AiCacheService,
@@ -83,18 +85,47 @@ export class GeminiService {
           }),
         },
       );
-    } catch {
-      throw new ServiceUnavailableException('AI service is unavailable');
+    } catch (error) {
+      this.logger.error(
+        {
+          event: 'gemini_request_failed',
+          baseUrl: this.baseUrl,
+          model: this.model,
+          message:
+            error instanceof Error ? error.message : 'Unknown fetch error',
+        },
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ServiceUnavailableException('AI network request failed');
     }
 
     if (!response.ok) {
+      const responseText = await response.text();
+      const bodyExcerpt = responseText.slice(0, 500);
+
+      this.logger.warn({
+        event: 'gemini_upstream_error',
+        baseUrl: this.baseUrl,
+        model: this.model,
+        statusCode: response.status,
+        bodyExcerpt,
+      });
+
       if (response.status === 401 || response.status === 403) {
         throw new InternalServerErrorException(
           'AI service authentication failed',
         );
       }
 
-      throw new ServiceUnavailableException('AI service is unavailable');
+      if (response.status === 429) {
+        throw new ServiceUnavailableException(
+          'AI upstream rate limit exceeded',
+        );
+      }
+
+      throw new ServiceUnavailableException(
+        `AI upstream request failed with status ${response.status}`,
+      );
     }
 
     const data = (await response.json()) as GeminiGenerateContentResponse;
