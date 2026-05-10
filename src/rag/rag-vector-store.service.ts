@@ -57,19 +57,39 @@ export class RagVectorStoreService {
 
       await this.client.delete(this.collectionName, {
         wait: true,
-        filter: {
-          must: [
-            {
-              key: 'articleId',
-              match: {
-                value: articleId,
-              },
-            },
-          ],
-        },
+        filter: this.buildArticleIdFilter(articleId),
       });
     } catch (error) {
       this.handleVectorError('delete_article_chunks_failed', error);
+    }
+  }
+
+  async removeArticleChunks(articleId: string): Promise<boolean> {
+    this.assertProvider();
+
+    try {
+      const exists = await this.client.collectionExists(this.collectionName);
+      if (!exists.exists) {
+        return false;
+      }
+
+      const countResult = await this.client.count(this.collectionName, {
+        exact: true,
+        filter: this.buildArticleIdFilter(articleId),
+      });
+
+      if (countResult.count === 0) {
+        return false;
+      }
+
+      await this.client.delete(this.collectionName, {
+        wait: true,
+        filter: this.buildArticleIdFilter(articleId),
+      });
+
+      return true;
+    } catch (error) {
+      this.handleVectorError('remove_article_chunks_failed', error);
     }
   }
 
@@ -173,6 +193,19 @@ export class RagVectorStoreService {
     }
 
     return must.length > 0 ? { must } : undefined;
+  }
+
+  private buildArticleIdFilter(articleId: string) {
+    return {
+      must: [
+        {
+          key: 'articleId',
+          match: {
+            value: articleId,
+          },
+        },
+      ],
+    };
   }
 
   private handleVectorError(event: string, error: unknown): never {
