@@ -54,6 +54,16 @@ export type GeminiGenerateTextOptions = {
   endpointName: string;
 };
 
+export type GeminiEmbeddingTaskType =
+  | 'RETRIEVAL_DOCUMENT'
+  | 'RETRIEVAL_QUERY'
+  | 'SEMANTIC_SIMILARITY';
+
+export type GeminiEmbedTextOptions = {
+  endpointName: string;
+  taskType?: GeminiEmbeddingTaskType;
+};
+
 export type CachedAiResponse<T> = {
   value: T;
   expiresAt: number;
