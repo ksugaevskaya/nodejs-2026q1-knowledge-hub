@@ -48,3 +48,9 @@ export type RagSearchResult = {
   chunk: string;
   similarity: number;
 };
+
+export type RagChatSource = {
+  articleId: string;
+  articleTitle: string;
+  relevantChunk: string;
+};
