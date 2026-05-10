@@ -4,7 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { RagVectorPoint } from './rag.types';
+import { RagSearchFilters, RagSearchResult, RagVectorPoint } from './rag.types';
 
 @Injectable()
 export class RagVectorStoreService {
@@ -73,6 +73,53 @@ export class RagVectorStoreService {
     }
   }
 
+  async search(
+    vector: number[],
+    limit: number,
+    filters: RagSearchFilters,
+  ): Promise<RagSearchResult[]> {
+    this.assertProvider();
+
+    try {
+      const exists = await this.client.collectionExists(this.collectionName);
+      if (!exists.exists) {
+        return [];
+      }
+
+      const results = await this.client.search(this.collectionName, {
+        vector,
+        limit,
+        filter: this.buildFilter(filters),
+        with_payload: true,
+      });
+
+      return results
+        .map((result) => {
+          const payload = result.payload as
+            | {
+                articleId?: string;
+                articleTitle?: string;
+                chunk?: string;
+              }
+            | undefined;
+
+          if (!payload?.articleId || !payload.articleTitle || !payload.chunk) {
+            return null;
+          }
+
+          return {
+            articleId: payload.articleId,
+            articleTitle: payload.articleTitle,
+            chunk: payload.chunk,
+            similarity: result.score,
+          };
+        })
+        .filter((result): result is RagSearchResult => result !== null);
+    } catch (error) {
+      this.handleVectorError('search_failed', error);
+    }
+  }
+
   private async ensureCollection(vectorSize: number): Promise<void> {
     const exists = await this.client.collectionExists(this.collectionName);
     if (exists.exists) {
@@ -93,6 +140,39 @@ export class RagVectorStoreService {
         `Unsupported vector DB provider: ${this.provider}`,
       );
     }
+  }
+
+  private buildFilter(filters: RagSearchFilters) {
+    const must: Array<Record<string, unknown>> = [];
+
+    if (filters.articleStatus) {
+      must.push({
+        key: 'status',
+        match: {
+          value: filters.articleStatus,
+        },
+      });
+    }
+
+    if (filters.categoryId) {
+      must.push({
+        key: 'categoryId',
+        match: {
+          value: filters.categoryId,
+        },
+      });
+    }
+
+    for (const tag of filters.tags ?? []) {
+      must.push({
+        key: 'tags',
+        match: {
+          value: tag,
+        },
+      });
+    }
+
+    return must.length > 0 ? { must } : undefined;
   }
 
   private handleVectorError(event: string, error: unknown): never {
