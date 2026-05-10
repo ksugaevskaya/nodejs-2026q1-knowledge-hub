@@ -49,7 +49,14 @@ DATABASE_URL_DOCKER="postgresql://user:password@db:5432/knowledge_hub"
 
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com
-GEMINI_MODEL=gemini-flash-latest
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+RAG_VECTOR_DB_PROVIDER=qdrant
+RAG_VECTOR_DB_URL=http://vectordb:6333
+RAG_VECTOR_COLLECTION=knowledge_hub_articles
+RAG_CHUNK_SIZE=800
+RAG_CHUNK_OVERLAP=200
+RAG_CONVERSATION_MAX_MESSAGES=20
 AI_RATE_LIMIT_RPM=20
 AI_CACHE_TTL_SEC=300
 ```
@@ -60,7 +67,10 @@ Paste your Gemini key into `GEMINI_API_KEY` in the local `.env` file.
 
 ## Gemini API Setup
 
-The AI integration uses the `gemini-flash-latest` model through the Google Gemini HTTP API.
+The RAG integration uses the Google Gemini HTTP API with:
+
+- generation model: `gemini-2.0-flash`
+- embedding model: `text-embedding-004`
 
 ### How to obtain a Gemini API key
 
@@ -71,21 +81,72 @@ The AI integration uses the `gemini-flash-latest` model through the Google Gemin
 5. Copy the generated key.
 6. Paste the key into `GEMINI_API_KEY` inside `.env`.
 
+## Vector Database
+
+This project uses `Qdrant` as the external vector database.
+
+- Docker Compose service name: `vectordb`
+- Internal application URL: `http://vectordb:6333`
+- Persistent Docker volume: `qdrant_data`
+
 ## Running the Application
 
-Just run:
+### Full startup flow after clone
 
+1. Install dependencies:
+
+```bash
+npm install --force
 ```
+
+2. Copy `.env.example` to `.env` and set a valid `GEMINI_API_KEY`.
+
+3. Start the full stack:
+
+```bash
 docker compose up --build
 ```
 
-Then wait for
+This starts:
+
+- Nest.js application
+- PostgreSQL database
+- Qdrant vector database
+
+4. Wait until the API container logs:
 
 ```
 LOG [NestApplication] Nest application successfully started
 ```
 
-And you can test the app. All migration/schema generation/data seed etc. will be handled automatically.
+5. Build or refresh the vector index:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/index \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"onlyPublished":true}'
+```
+
+6. Run sample RAG requests:
+
+Semantic search:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/search \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"query":"What is NestJS?","limit":5}'
+```
+
+RAG chat:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"question":"Summarize the Knowledge Hub article about NestJS"}'
+```
 
 If you want to test manually then keep reading guide below.
 
@@ -170,6 +231,13 @@ curl -X POST http://localhost:4000/ai/articles/<article-id>/analyze \
   -d '{"task":"review"}'
 ```
 
+Example delete indexed article request:
+
+```bash
+curl -X DELETE http://localhost:4000/ai/rag/index/articles/<article-id> \
+  -H "Authorization: Bearer <token>"
+```
+
 ## API Documentation
 
 Once the application is running, you can access the OpenAPI/Swagger documentation at:
@@ -219,14 +287,19 @@ The API provides endpoints for managing the following resources:
 - POST `/ai/articles/:articleId/summarize` - Generate a summary for an existing article
 - POST `/ai/articles/:articleId/translate` - Translate article content
 - POST `/ai/articles/:articleId/analyze` - Analyze article content and return suggestions
+- POST `/ai/rag/index` - Build or refresh the RAG vector index from Knowledge Hub articles
+- POST `/ai/rag/search` - Run semantic search over indexed article chunks
+- POST `/ai/rag/chat` - Ask a grounded question using retrieved Knowledge Hub chunks
+- DELETE `/ai/rag/index/articles/:articleId` - Remove one article from the vector index
 
 ## Known Limitations
 
 - Gemini free-tier quotas are limited and may cause upstream throttling during repeated tests.
 - AI output is non-deterministic, so repeated requests can return different phrasing.
-- AI endpoints are slower than standard CRUD operations because they depend on an external LLM API.
+- RAG endpoints are slower than standard CRUD operations because they depend on Gemini plus external vector search.
+- Indexing time grows with article count and article length because embeddings are generated chunk by chunk.
 - Gemini availability can depend on Google account access and regional support.
-- The current AI flow works only with article content that already exists in the Knowledge Hub database.
+- Qdrant and the API must both be running in Docker Compose for RAG endpoints to work.
 
 ## Testing
 
