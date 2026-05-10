@@ -1,4 +1,13 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { ParseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 import { RagChatRequestDto } from './dto/rag-chat-request.dto';
 import { ReindexRequestDto } from './dto/reindex-request.dto';
 import { RagSearchRequestDto } from './dto/rag-search-request.dto';
@@ -24,5 +33,13 @@ export class RagController {
   @HttpCode(HttpStatus.OK)
   chat(@Body() dto: RagChatRequestDto) {
     return this.ragService.chat(dto);
+  }
+
+  @Delete('index/articles/:articleId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteIndexedArticle(
+    @Param('articleId', new ParseUuidPipe('articleId')) articleId: string,
+  ): Promise<void> {
+    await this.ragService.deleteIndexedArticle(articleId);
   }
 }
