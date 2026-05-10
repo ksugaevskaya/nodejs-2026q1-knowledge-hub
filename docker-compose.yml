@@ -19,8 +19,7 @@ services:
     ports:
       - '4000:4000'
     healthcheck:
-      test:
-        ['CMD-SHELL', 'wget --quiet --spider http://localhost:4000/ || exit 1']
+      test: ['CMD-SHELL', 'timeout 1 bash -c "cat < /dev/null > /dev/tcp/localhost/4000"']
       interval: 30s
       timeout: 10s
       retries: 5
@@ -59,8 +58,7 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test:
-        ['CMD-SHELL', 'wget --quiet --spider http://localhost:6333/ || exit 1']
+      test: ['CMD-SHELL', 'timeout 1 bash -c "cat < /dev/null > /dev/tcp/localhost/6333"']
       interval: 10s
       timeout: 5s
       retries: 5
