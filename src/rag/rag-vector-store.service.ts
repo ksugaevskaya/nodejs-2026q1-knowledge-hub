@@ -4,7 +4,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { RagSearchFilters, RagSearchResult, RagVectorPoint } from './rag.types';
+import {
+  RagArticleIndexState,
+  RagSearchFilters,
+  RagSearchResult,
+  RagVectorPoint,
+} from './rag.types';
 
 @Injectable()
 export class RagVectorStoreService {
@@ -113,13 +118,14 @@ export class RagVectorStoreService {
         with_payload: true,
       });
 
-      return results
-        .map((result) => {
+      const mappedResults: Array<RagSearchResult | null> = results.map(
+        (result) => {
           const payload = result.payload as
             | {
                 articleId?: string;
                 articleTitle?: string;
                 chunk?: string;
+                sourceText?: string;
               }
             | undefined;
 
@@ -132,11 +138,58 @@ export class RagVectorStoreService {
             articleTitle: payload.articleTitle,
             chunk: payload.chunk,
             similarity: result.score,
+            sourceText: payload.sourceText,
           };
-        })
-        .filter((result): result is RagSearchResult => result !== null);
+        },
+      );
+
+      return mappedResults.filter(
+        (result): result is RagSearchResult => result !== null,
+      );
     } catch (error) {
       this.handleVectorError('search_failed', error);
+    }
+  }
+
+  async getArticleIndexState(
+    articleId: string,
+  ): Promise<RagArticleIndexState | null> {
+    this.assertProvider();
+
+    try {
+      const exists = await this.client.collectionExists(this.collectionName);
+      if (!exists.exists) {
+        return null;
+      }
+
+      const countResult = await this.client.count(this.collectionName, {
+        exact: true,
+        filter: this.buildArticleIdFilter(articleId),
+      });
+
+      if (countResult.count === 0) {
+        return null;
+      }
+
+      const scrollResult = await this.client.scroll(this.collectionName, {
+        filter: this.buildArticleIdFilter(articleId),
+        with_payload: true,
+        limit: 1,
+      });
+
+      const firstPoint = scrollResult.points[0];
+      const payload = firstPoint?.payload as
+        | {
+            contentHash?: string;
+          }
+        | undefined;
+
+      return {
+        chunkCount: countResult.count,
+        contentHash: payload?.contentHash ?? null,
+      };
+    } catch (error) {
+      this.handleVectorError('get_article_index_state_failed', error);
     }
   }
 

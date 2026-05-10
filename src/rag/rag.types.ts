@@ -23,11 +23,13 @@ export type RagVectorPayload = {
   articleTitle: string;
   chunk: string;
   chunkIndex: number;
+  sourceText: string;
   status: ArticleStatus;
   categoryId: string | null;
   categoryName: string | null;
   tags: string[];
   updatedAt: string;
+  contentHash: string;
 };
 
 export type RagVectorPoint = {
@@ -47,10 +49,18 @@ export type RagSearchResult = {
   articleTitle: string;
   chunk: string;
   similarity: number;
+  lexicalScore?: number;
+  rerankScore?: number;
+  sourceText?: string;
 };
 
 export type RagChatSource = {
   articleId: string;
   articleTitle: string;
   relevantChunk: string;
+};
+
+export type RagArticleIndexState = {
+  chunkCount: number;
+  contentHash: string | null;
 };
