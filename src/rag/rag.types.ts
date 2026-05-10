@@ -35,3 +35,16 @@ export type RagVectorPoint = {
   vector: number[];
   payload: RagVectorPayload;
 };
+
+export type RagSearchFilters = {
+  articleStatus?: ArticleStatus;
+  categoryId?: string;
+  tags?: string[];
+};
+
+export type RagSearchResult = {
+  articleId: string;
+  articleTitle: string;
+  chunk: string;
+  similarity: number;
+};
