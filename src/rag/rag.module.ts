@@ -4,6 +4,7 @@ import { ArticlesModule } from '../articles/articles.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagController } from './rag.controller';
 import { RagChunkingService } from './rag-chunking.service';
+import { RagConversationService } from './rag-conversation.service';
 import { RagService } from './rag.service';
 import { RagVectorStoreService } from './rag-vector-store.service';
 
@@ -13,6 +14,7 @@ import { RagVectorStoreService } from './rag-vector-store.service';
   providers: [
     RagService,
     RagChunkingService,
+    RagConversationService,
     RagVectorStoreService,
     PrismaService,
   ],
