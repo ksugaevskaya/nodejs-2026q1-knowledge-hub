@@ -12,6 +12,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './auth/roles.guard';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AiModule } from './ai/ai.module';
+import { RagModule } from './rag/rag.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AiModule } from './ai/ai.module';
     CommentsModule,
     AuthModule,
     AiModule,
+    RagModule,
   ],
   controllers: [AppController],
   providers: [
