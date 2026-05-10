@@ -3,9 +3,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { v5 as uuidv5 } from 'uuid';
 import { GeminiService } from '../ai/gemini.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RagSearchRequestDto } from './dto/rag-search-request.dto';
 import { ReindexRequestDto } from './dto/reindex-request.dto';
 import { RagChunkingService } from './rag-chunking.service';
-import { RagArticleRecord, RagVectorPoint } from './rag.types';
+import { RagArticleRecord, RagSearchResult, RagVectorPoint } from './rag.types';
 import { RagVectorStoreService } from './rag-vector-store.service';
 
 const RAG_CHUNK_NAMESPACE = '4f1f5d7f-5e77-42ad-8ab0-0e7f81587cb8';
@@ -44,6 +45,26 @@ export class RagService {
       indexedArticles: articles.length,
       indexedChunks,
       vectorCollection: this.vectorStoreService.getCollectionName(),
+    };
+  }
+
+  async search(
+    dto: RagSearchRequestDto,
+  ): Promise<{ results: RagSearchResult[] }> {
+    const limit = dto.limit ?? 5;
+    const embedding = await this.geminiService.embedText(dto.query.trim(), {
+      endpointName: 'ragSearch',
+      taskType: 'RETRIEVAL_QUERY',
+    });
+
+    const results = await this.vectorStoreService.search(embedding, limit, {
+      articleStatus: dto.articleStatus,
+      categoryId: dto.categoryId,
+      tags: dto.tags?.map((tag) => tag.trim()).filter(Boolean),
+    });
+
+    return {
+      results,
     };
   }
 
