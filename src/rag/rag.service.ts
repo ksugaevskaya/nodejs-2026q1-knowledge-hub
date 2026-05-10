@@ -2,6 +2,7 @@ import { ArticleStatus, RagMessageRole } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import { GeminiService } from '../ai/gemini.service';
+import { NotFoundError } from '../common/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagChatRequestDto } from './dto/rag-chat-request.dto';
 import { RagSearchRequestDto } from './dto/rag-search-request.dto';
@@ -126,6 +127,15 @@ export class RagService {
       })),
       conversationId,
     };
+  }
+
+  async deleteIndexedArticle(articleId: string): Promise<void> {
+    const removed =
+      await this.vectorStoreService.removeArticleChunks(articleId);
+
+    if (!removed) {
+      throw new NotFoundError('Article index entries not found');
+    }
   }
 
   private async buildArticlePoints(
