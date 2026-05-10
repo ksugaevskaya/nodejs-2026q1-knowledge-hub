@@ -35,6 +35,7 @@ export class RagService {
   async reindex(dto: ReindexRequestDto) {
     const onlyPublished = dto.onlyPublished ?? true;
     const articles = await this.loadArticles(dto.articleIds, onlyPublished);
+    const isFullReindex = !dto.articleIds || dto.articleIds.length === 0;
 
     let indexedArticles = 0;
     let indexedChunks = 0;
@@ -64,6 +65,19 @@ export class RagService {
       await this.vectorStoreService.replaceArticleChunks(article.id, points);
       indexedArticles += 1;
       indexedChunks += points.length;
+    }
+
+    if (isFullReindex) {
+      const dbArticleIds = new Set(articles.map((article) => article.id));
+      const indexedArticleIds =
+        await this.vectorStoreService.listIndexedArticleIds();
+      const staleArticleIds = indexedArticleIds.filter(
+        (articleId) => !dbArticleIds.has(articleId),
+      );
+
+      for (const staleArticleId of staleArticleIds) {
+        await this.vectorStoreService.deleteArticleChunks(staleArticleId);
+      }
     }
 
     this.logger.log({

@@ -193,6 +193,50 @@ export class RagVectorStoreService {
     }
   }
 
+  async listIndexedArticleIds(): Promise<string[]> {
+    this.assertProvider();
+
+    try {
+      const exists = await this.client.collectionExists(this.collectionName);
+      if (!exists.exists) {
+        return [];
+      }
+
+      const articleIds = new Set<string>();
+      let offset: string | number | Record<string, unknown> | undefined;
+
+      while (true) {
+        const scrollResult = await this.client.scroll(this.collectionName, {
+          with_payload: true,
+          limit: 100,
+          offset,
+        });
+
+        for (const point of scrollResult.points) {
+          const payload = point.payload as
+            | {
+                articleId?: string;
+              }
+            | undefined;
+
+          if (payload?.articleId) {
+            articleIds.add(payload.articleId);
+          }
+        }
+
+        if (!scrollResult.next_page_offset) {
+          break;
+        }
+
+        offset = scrollResult.next_page_offset;
+      }
+
+      return Array.from(articleIds);
+    } catch (error) {
+      this.handleVectorError('list_indexed_article_ids_failed', error);
+    }
+  }
+
   private async ensureCollection(vectorSize: number): Promise<void> {
     const exists = await this.client.collectionExists(this.collectionName);
     if (exists.exists) {
