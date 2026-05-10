@@ -4,7 +4,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { GeminiGenerateTextOptions, GeminiUsageMetadata } from './ai.types';
+import {
+  GeminiEmbedTextOptions,
+  GeminiGenerateTextOptions,
+  GeminiUsageMetadata,
+} from './ai.types';
 import { AiCacheService } from './internal/ai-cache.service';
 import { AiUsageTrackerService } from './internal/ai-usage-tracker.service';
 
@@ -22,6 +26,8 @@ export class GeminiService {
     process.env.GEMINI_API_BASE_URL ??
     'https://generativelanguage.googleapis.com';
   private readonly model = process.env.GEMINI_MODEL ?? 'gemini-flash-latest';
+  private readonly embeddingModel =
+    process.env.GEMINI_EMBEDDING_MODEL ?? 'text-embedding-004';
   private readonly requestTimeoutMs = 10_000;
   private readonly maxRateLimitRetries = 3;
 
@@ -81,6 +87,38 @@ export class GeminiService {
       ...result,
       cached: false,
     };
+  }
+
+  async embedText(
+    text: string,
+    options: GeminiEmbedTextOptions,
+  ): Promise<number[]> {
+    if (!this.apiKey) {
+      throw new InternalServerErrorException('AI service is not configured');
+    }
+
+    const startedAt = Date.now();
+    let retryCount = 0;
+
+    try {
+      const embeddingResult = await this.callGeminiEmbedding(text, options);
+      retryCount = embeddingResult.retryCount;
+
+      this.usageTracker.recordRequest(options.endpointName, undefined, {
+        retryCount,
+        upstreamFailure: false,
+        latencyMs: Date.now() - startedAt,
+      });
+
+      return embeddingResult.embedding;
+    } catch (error) {
+      this.usageTracker.recordRequest(options.endpointName, undefined, {
+        retryCount,
+        upstreamFailure: true,
+        latencyMs: Date.now() - startedAt,
+      });
+      throw error;
+    }
   }
 
   private async callGemini(
@@ -209,6 +247,147 @@ export class GeminiService {
     throw new ServiceUnavailableException('AI upstream rate limit exceeded');
   }
 
+  private async callGeminiEmbedding(
+    text: string,
+    options: GeminiEmbedTextOptions,
+  ): Promise<{ embedding: number[]; retryCount: number }> {
+    let retryCount = 0;
+
+    for (let attempt = 0; attempt <= this.maxRateLimitRetries; attempt += 1) {
+      const response = await this.performRequest(
+        `${this.baseUrl}/v1beta/models/${this.embeddingModel}:embedContent?key=${this.apiKey}`,
+        {
+          model: `models/${this.embeddingModel}`,
+          content: {
+            parts: [
+              {
+                text,
+              },
+            ],
+          },
+          taskType: options.taskType ?? 'RETRIEVAL_DOCUMENT',
+        },
+        {
+          event: 'gemini_embedding_request_failed',
+          model: this.embeddingModel,
+        },
+      );
+
+      if (!response.ok) {
+        const shouldRetry = await this.handleErrorResponse(
+          response,
+          this.embeddingModel,
+          attempt,
+        );
+
+        if (shouldRetry) {
+          retryCount += 1;
+          continue;
+        }
+      }
+
+      const data = (await response.json()) as GeminiEmbedContentResponse;
+      const embedding = data.embedding?.values;
+
+      if (!embedding || embedding.length === 0) {
+        throw new ServiceUnavailableException(
+          'AI service returned an empty embedding',
+        );
+      }
+
+      return {
+        embedding,
+        retryCount,
+      };
+    }
+
+    throw new ServiceUnavailableException('AI upstream rate limit exceeded');
+  }
+
+  private async performRequest(
+    url: string,
+    body: object,
+    context: {
+      event: string;
+      model: string;
+    },
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        this.logger.error({
+          event: 'gemini_request_timeout',
+          baseUrl: this.baseUrl,
+          model: context.model,
+          timeoutMs: this.requestTimeoutMs,
+        });
+        throw new ServiceUnavailableException('AI request timed out');
+      }
+
+      this.logger.error(
+        {
+          event: context.event,
+          baseUrl: this.baseUrl,
+          model: context.model,
+          message:
+            error instanceof Error ? error.message : 'Unknown fetch error',
+        },
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ServiceUnavailableException('AI network request failed');
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async handleErrorResponse(
+    response: Response,
+    model: string,
+    attempt: number,
+  ): Promise<boolean> {
+    const responseText = await response.text();
+    const bodyExcerpt = responseText.slice(0, 500);
+
+    this.logger.warn({
+      event: 'gemini_upstream_error',
+      baseUrl: this.baseUrl,
+      model,
+      statusCode: response.status,
+      bodyExcerpt,
+      attempt: attempt + 1,
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      throw new InternalServerErrorException(
+        'AI service authentication failed',
+      );
+    }
+
+    if (response.status === 429) {
+      if (attempt < this.maxRateLimitRetries) {
+        await this.sleep(this.getBackoffDelayMs(attempt));
+        return true;
+      }
+
+      throw new ServiceUnavailableException('AI upstream rate limit exceeded');
+    }
+
+    throw new ServiceUnavailableException(
+      `AI upstream request failed with status ${response.status}`,
+    );
+  }
+
   private extractText(response: GeminiGenerateContentResponse): string {
     const parts =
       response.candidates?.flatMap(
@@ -254,5 +433,11 @@ type GeminiGenerateContentResponse = {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
     totalTokenCount?: number;
+  };
+};
+
+type GeminiEmbedContentResponse = {
+  embedding?: {
+    values?: number[];
   };
 };
